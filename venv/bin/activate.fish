@@ -29,7 +29,7 @@ end
 # unset irrelevant variables
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/home/flowhack/Yandex.Disk/Python/My_Projects/GUI/Reference/venv"
+set -gx VIRTUAL_ENV "/home/flowhack/Yandex.Disk/Python/Dev/F_Reference_H/venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

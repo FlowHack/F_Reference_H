@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/home/flowhack/Yandex.Disk/Python/My_Projects/GUI/Reference/venv"
+VIRTUAL_ENV="/home/flowhack/Yandex.Disk/Python/Dev/F_Reference_H/venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

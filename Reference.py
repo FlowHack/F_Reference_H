@@ -15,6 +15,8 @@ from tkinter.ttk import Entry
 from tkinter.ttk import Combobox
 from tkinter.ttk import Spinbox
 from tkinter.ttk import Checkbutton
+from tkinter.messagebox import showerror
+from tkinter import WORD
 from tkinter import BooleanVar
 from tkinter import IntVar
 from tkinter import Text
@@ -36,7 +38,7 @@ LANGUAGE = {
         'main_block': 'Главная',
         'other_block': 'Другое',
         'settings_block': 'Настройки',
-        'report_block': 'Сообщить об ошибке',
+        'report_block': 'Сообщить об ошибке или предложении',
         'optimization_block': 'Оптимизация ID',
         'previously_created': 'Ранее созданные',
         'label_opt_main': 'Введите в поле ваши ID',
@@ -49,14 +51,21 @@ LANGUAGE = {
         'input_set_bold': 'Жирный',
         'input_set_italic': 'Курсив',
         'input_set_underline': 'Подчёркивание',
-        'set_onoff_other_block': 'Включить блок "Другое',
+        'set_onoff_other_block': 'Включить блок "Другое"',
         'set_language': 'Язык программы',
         'lab_rep_email': 'Email',
         'lab_rep_pas': 'Пароль',
-        'lab_rep_addfile': 'Прикрепить файл',
+        'lab_rep_addfile': 'Прикреп. файл',
         'lab_input_rep_addfile': 'Выберите файл, нажав на кнопку ==>',
-        'lab_rep_text_vk': 'Вы можете написать во Вконтакте, нажмите ==>',
-        'lbl_help_sait': 'Вы можете открыть полную помощь по программе на сайте, нажмите ==>',
+        'lab_rep_text_vk': 'Вы можете написать мне во Вконтакте, нажмите ==>',
+        'lbl_help_sait': 'Можете открыть помощь по программе на сайте, нажмите ==>',
+        'lbl_add_main': 'Добавление записи в блок',
+        'lbl_edit_main': 'Редактирование записи из блока',
+        'lab_addedit_name': 'Название',
+        'lab_addedit_font': 'Шрифт',
+        'lab_addedit_size': 'Размер',
+        'btn_addedit_apply': 'Применить к тексту',
+        'btn_addedit_save': 'Сохранить',
     },
     'English': {
         'main_block': 'Main',
@@ -77,6 +86,24 @@ LANGUAGE = {
         'input_set_underline': 'Underline',
         'set_onoff_other_block': 'Enable the block "Other"',
         'set_language': 'Program language',
+        'lab_rep_email': 'Email',
+        'lab_rep_pas': 'Password',
+        'lab_rep_addfile': 'Add attachment',
+        'lab_input_rep_addfile': 'Select a file by clicking the button ==>',
+        'lab_rep_text_vk': 'You can write on the social network Vkontakte, just click ==>',
+        'lbl_help_sait': 'You can open the full and well-designed version of help, just click ==>',
+    }
+}
+ERROR = {
+    'Russian': {
+        'delete': '''Произошла непредвиденная ошибка!
+
+Возможно вы не выбрали удаляемую запись!
+
+Если решить ошибку не удастся самостоятельно, то напишите в соответствующем блоке верхнего меню приложения. Хорошего дня!'''
+    },
+    'Englsh': {
+
     }
 }
 LANGUAGE_LIST = ['Russian', 'English']
@@ -178,7 +205,7 @@ class Chek_value:
                 text TEXT,
                 font TEXT,
                 size INT,
-                date DATE)""")
+                date TEXT)""")
         self.connect_sql.commit()
         self.cursor_sql.executemany("INSERT INTO list_block VALUES (?,?,?,?,?,?,?)", DEFAULT_VALUE_LIST)
         self.connect_sql.commit()
@@ -235,9 +262,11 @@ class Actions:
         self.connect_sql.commit()
         self.completion_list()
 
-    @staticmethod
-    def curselection_identify(where):
-        return where.get(where.curselection()).split()[1]
+    def curselection_identify(self, where):
+        try:
+            return str(where.get(where.curselection()).split()[1])
+        except:
+            showerror('Error', ERROR[self.language]['delete'])
 
     @staticmethod
     def open_webbrowser(url: str):
@@ -250,9 +279,7 @@ class Build(Chek_value, Actions):
         #     self.Main_window.deiconify()
         #     self.root.destroy()
 
-        self.Main_window = ThemedTk(theme='black')
         # self.Main_window.withdraw()
-        #
         # self.root = Toplevel()
         # self.root.geometry('+200+200')
         # self.root.overrideredirect(1)
@@ -261,13 +288,14 @@ class Build(Chek_value, Actions):
         # self.Main_window.after(2000, starting)
 
         super().__init__()
+        self.Main_window = ThemedTk(theme='black')
         self.Main_window.title('F_Reference_H')
         self.Main_window.geometry('1200x500')
         x = (self.Main_window.winfo_screenwidth() - self.Main_window.winfo_reqwidth()) / 4
         y = (self.Main_window.winfo_screenheight() - self.Main_window.winfo_reqheight()) / 4
         self.Main_window.wm_geometry("+%d+%d" % (x - 50, y))
         self.Main_window.resizable(width=False, height=False)
-        self.Main_window.iconphoto(True, PhotoImage(file=path.join(self.path_ico, "ico_main.png")))
+        self.Main_window.iconphoto(True, PhotoImage(file='settings/ico/ico_main.png'))
 
         # Создание картинок
         help_png_img = Image.open(f'{self.path_ico}/help.png')
@@ -299,12 +327,14 @@ class Build(Chek_value, Actions):
 
         self.notebook = Notebook(self.Main_window)
         self.main_block = Frame(self.notebook)
-        self.other_block = Frame(self.notebook)
+        if self.start_other_block == 1:
+            self.other_block = Frame(self.notebook)
         self.settings_block = Frame(self.notebook)
         self.report_block = Frame(self.notebook)
         self.help_block = Frame(self.notebook)
         self.notebook.add(self.main_block, text=LANGUAGE[self.language]['main_block'])
-        self.notebook.add(self.other_block, text=LANGUAGE[self.language]['other_block'])
+        if self.start_other_block == 1:
+            self.notebook.add(self.other_block, text=LANGUAGE[self.language]['other_block'])
         self.notebook.add(self.settings_block, text=LANGUAGE[self.language]['settings_block'])
         self.notebook.add(self.report_block, text=LANGUAGE[self.language]['report_block'])
         self.notebook.add(self.help_block, image=help_png)
@@ -331,7 +361,9 @@ class Build(Chek_value, Actions):
             width=32,
             height=26.2
         )
-        self.add_1 = Button(self.frame_main_1, image=add_file, cursor='plus').place(
+        self.add_1 = Button(self.frame_main_1, image=add_file, cursor='plus',
+                            command=lambda: self.Add_edit('ADD', 'ONE')
+                            ).place(
             rely=.11,
             relx=.882,
             width=32,
@@ -359,7 +391,9 @@ class Build(Chek_value, Actions):
             width=32,
             height=26.2
         )
-        self.add_2 = Button(self.frame_main_2, image=add_file, cursor='plus').place(
+        self.add_2 = Button(self.frame_main_2, image=add_file, cursor='plus',
+                            command=lambda: self.Add_edit('ADD', 'TWO')
+                            ).place(
             rely=.11,
             relx=.882,
             width=32,
@@ -376,49 +410,57 @@ class Build(Chek_value, Actions):
 
         # Создание ListBox
         self.list_block_1 = Listbox(self.main_block, cursor='dot')
-        self.list_block_1.bind('<Double-Button-1>', lambda not_matter: self.curselection_identify(self.list_block_1))
+        self.list_block_1.bind('<Double-Button-1>', lambda not_matter: self.Add_edit('EDIT', 'ONE',
+                                                                                     self.curselection_identify(
+                                                                                         self.list_block_1)))
         self.list_block_1['font'] = (self.value_ONE[2], self.value_ONE[3], self.value_ONE[4])
         self.list_block_1.place(y=40, relwidth=.5, relheight=0.91)
         self.scroll_list_block_1 = Scrollbar(self.list_block_1, orient='vertical')
         self.scroll_list_block_1.pack(side='right', fill='y')
         self.list_block_2 = Listbox(self.main_block, cursor='dot')
+        self.list_block_2.bind('<Double-Button-1>', lambda not_matter: self.Add_edit('EDIT', 'TWO',
+                                                                                     self.curselection_identify(
+                                                                                         self.list_block_2)))
         self.list_block_2['font'] = (self.value_TWO[2], self.value_TWO[3], self.value_TWO[4])
         self.list_block_2.place(y=40, relx=.5005, relwidth=.5, relheight=0.91)
         self.scroll_list_block_2 = Scrollbar(self.list_block_2, orient='vertical')
         self.scroll_list_block_2.pack(side='right', fill='y')
 
         # !!!!!!BUILD_OTHER_BLOCK!!!!!!
-        self.notebook_other = Notebook(self.other_block)
-        self.optimization_block = Frame(self.notebook_other)
-        self.notebook_other.add(self.optimization_block, text=LANGUAGE[self.language]['optimization_block'])
-        self.notebook_other.pack(expand=True, fill='both')
+        if self.start_other_block == 1:
+            self.notebook_other = Notebook(self.other_block)
+            self.optimization_block = Frame(self.notebook_other)
+            self.notebook_other.add(self.optimization_block, text=LANGUAGE[self.language]['optimization_block'])
+            self.notebook_other.pack(expand=True, fill='both')
 
-        # Заполнение optimaze
-        self.previously_created = Button(
-            self.optimization_block,
-            text=LANGUAGE[self.language]['previously_created']
-        ).place(y=5, x=1)
-        self.label_opt_main = Label(self.optimization_block, text=LANGUAGE[self.language]['label_opt_main'])
-        self.label_opt_main.place(y=10, relx=.5, anchor="c")
-        self.label_opt_main['font'] = ('Times New Roman', 15, 'italic bold')
-        self.btn_optimaze = Button(
-            self.optimization_block,
-            text=LANGUAGE[self.language]['btn_optimaze']
-        ).place(y=5, relx=.888)
-        Label(
-            self.optimization_block,
-            text=LANGUAGE[self.language]['lab_shortcat_id'],
-            font=('Times New Roman', 10),
-            foreground='red'
-        ).place(relx=.5, rely=.22, anchor='c')
-        self.id_text = Text(self.optimization_block)
-        self.id_text.place(x=5, rely=.25, relwidth=.99, relheight=.738)
-        self.optimaze_flowhack_1 = Label(self.optimization_block, image=self.average_flowhack, cursor='heart')
-        self.optimaze_flowhack_1.place(x=5, rely=.175)
-        self.optimaze_flowhack_1.bind('<Button-1>', lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
-        self.optimaze_flowhack_2 = Label(self.optimization_block, image=self.average_flowhack, cursor='heart')
-        self.optimaze_flowhack_2.place(relx=.89, rely=.179)
-        self.optimaze_flowhack_2.bind('<Button-1>', lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
+            # Заполнение optimaze
+            self.previously_created = Button(
+                self.optimization_block,
+                text=LANGUAGE[self.language]['previously_created']
+            ).place(y=5, x=1)
+            self.label_opt_main = Label(self.optimization_block, text=LANGUAGE[self.language]['label_opt_main'])
+            self.label_opt_main.place(y=10, relx=.5, anchor="c")
+            self.label_opt_main['font'] = ('Times New Roman', 15, 'italic bold')
+            self.btn_optimaze = Button(
+                self.optimization_block,
+                text=LANGUAGE[self.language]['btn_optimaze']
+            ).place(y=5, relx=.888)
+            Label(
+                self.optimization_block,
+                text=LANGUAGE[self.language]['lab_shortcat_id'],
+                font=('Times New Roman', 10),
+                foreground='red'
+            ).place(relx=.5, rely=.22, anchor='c')
+            self.id_text = Text(self.optimization_block)
+            self.id_text.place(x=5, rely=.25, relwidth=.99, relheight=.738)
+            self.optimaze_flowhack_1 = Label(self.optimization_block, image=self.average_flowhack, cursor='heart')
+            self.optimaze_flowhack_1.place(x=5, rely=.175)
+            self.optimaze_flowhack_1.bind('<Button-1>',
+                                          lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
+            self.optimaze_flowhack_2 = Label(self.optimization_block, image=self.average_flowhack, cursor='heart')
+            self.optimaze_flowhack_2.place(relx=.89, rely=.179)
+            self.optimaze_flowhack_2.bind('<Button-1>',
+                                          lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
 
         # !!!!!! BUILD_SETTINGS_BLOCK !!!!!!
 
@@ -582,7 +624,7 @@ class Build(Chek_value, Actions):
             self.frame_optimization_3,
             text=LANGUAGE[self.language]['set_onoff_other_block'],
             var=chk_other_block
-        ).place(relx=.5, y=10, anchor='c')
+        ).place(relx=.5, y=17, anchor='c')
         Label(
             self.frame_optimization_3,
             font=('Times New Roman', 13, 'bold italic'),
@@ -598,7 +640,7 @@ class Build(Chek_value, Actions):
         self.input_language.place(relx=.59, y=50, anchor='c')
         self.set_ok = Button(self.settings_block, image=ok).place(relx=.5, rely=.95, anchor='c')
 
-        # !!!!!! BUILD_SETTINGS_BLOCK !!!!!!
+        # !!!!!! BUILD_REPORT_BLOCK !!!!!!
         Label(
             self.report_block,
             text=LANGUAGE[self.language]['lab_rep_email'],
@@ -651,7 +693,7 @@ class Build(Chek_value, Actions):
             text=LANGUAGE[self.language]['lab_input_rep_addfile'],
             borderwidth=0.5,
             relief='solid'
-        ).place(relx=.515, y=10, relwidth=.43)
+        ).place(relx=.5, y=10, relwidth=.445)
         self.btn_rep_upload = Button(self.report_block, image=browse).place(relx=.95, y=2)
         self.text_rep = Text(self.report_block, font=('Times New Roman', 12))
         self.text_rep.place(relx=.01, rely=.2, relheight=.785, relwidth=.982)
@@ -661,11 +703,11 @@ class Build(Chek_value, Actions):
             text=LANGUAGE[self.language]['lab_rep_text_vk']
         ).place(relx=.4, y=40)
         self.lab_rep_vk = Label(self.report_block, image=self.average_flowhack, cursor='heart')
-        self.lab_rep_vk.place(relx=.73, y=36)
+        self.lab_rep_vk.place(relx=.75, y=36)
         self.lab_rep_vk.bind('<Button-1>', lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
         self.btn_rep_send = Button(
             self.report_block,
-            image=send
+            image=send,
         ).place(relx=.951, y=51)
         self.lbl_set_flowhack_1 = Label(self.settings_block, image=self.max_flowhack, cursor='heart')
         self.lbl_set_flowhack_1.bind('<Button-1>', lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
@@ -681,7 +723,7 @@ class Build(Chek_value, Actions):
             self.frame_help_1,
             text=LANGUAGE[self.language]['lbl_help_sait'],
             font=('Times New Roman', 12, 'bold italic')
-        ).place(relx=.05, y=7)
+        ).place(relx=.5, y=18, anchor='c')
         self.lbl_help_sait_png = Label(self.frame_help_1, image=self.sait, cursor='heart')
         self.lbl_help_sait_png.bind('<Button-1>', lambda no_matter: self.open_webbrowser('https://flowhack.github.io/'))
         self.lbl_help_sait_png.place(relx=.85, y=1)
@@ -691,6 +733,112 @@ class Build(Chek_value, Actions):
         self.completion_list(start_list=bool(False))
         self.Main_window.protocol("WM_DELETE_WINDOW", exit_ex)
         self.Main_window.mainloop()
+
+    def Add_edit(self, doing, name_list, name_record=None):
+        def apply():
+            pass
+
+        def save():
+            pass
+
+        if doing == 'ADD':
+            if name_list == 'ONE':
+                text_main = f'{LANGUAGE[self.language]["lbl_add_main"]} <{self.value_ONE[1]}>'
+            else:
+                text_main = f'{LANGUAGE[self.language]["lbl_add_main"]} <{self.value_TWO[1]}>'
+        else:
+            text_main = f'{LANGUAGE[self.language]["lbl_edit_main"]} <{self.value_ONE[1]}>'
+
+        if doing == 'EDIT':
+            self.cursor_sql.execute(f'SELECT * FROM list_records WHERE (name_list = "{name_list}") and '
+                                    f'(name = "{name_record}")')
+            addedit_all = self.cursor_sql.fetchone()
+
+        self.Add_edit_window = Toplevel(background='#424242')
+        self.Add_edit_window.title('Add_or_Edit')
+        self.Add_edit_window.geometry('1200x950')
+        x = (self.Add_edit_window.winfo_screenwidth() - self.Add_edit_window.winfo_reqwidth()) / 4
+        y = (self.Add_edit_window.winfo_screenheight() - self.Add_edit_window.winfo_reqheight()) / 4
+        self.Add_edit_window.wm_geometry("+%d+%d" % (x - 50, y - 180))
+        self.Add_edit_window.iconphoto(True, PhotoImage(file='settings/ico/ico_main.png'))
+
+        frame = Frame(self.Add_edit_window, borderwidth=0.5, relief='solid')
+        frame.place(relwidth=1, height=120)
+
+        Label(self.Add_edit_window,
+              text=text_main,
+              font=('Times New Roman', 13, 'bold italic')
+              ).place(relx=.5, y=20, anchor='c')
+        label_flowhack_1 = Label(self.Add_edit_window, image=self.average_flowhack, cursor='heart')
+        label_flowhack_1.bind('<Button-1>', lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
+        label_flowhack_1.place(relx=.1, anchor='c', y=20)
+        label_flowhack_2 = Label(self.Add_edit_window, image=self.average_flowhack, cursor='heart')
+        label_flowhack_2.bind('<Button-1>', lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
+        label_flowhack_2.place(relx=.9, anchor='c', y=20)
+        Label(self.Add_edit_window,
+              text=LANGUAGE[self.language]['lab_addedit_name'],
+              font=('Times New Roman', 12, 'bold italic')
+              ).place(x=10, y=50)
+        self.input_addedit_name = Entry(self.Add_edit_window, font=('Times New Roman', 11, 'bold italic'))
+        if doing == 'EDIT':
+            self.input_addedit_name.insert(END, addedit_all[1])
+        self.input_addedit_name.place(x=90, y=50, relwidth=.25, height=23)
+        Label(self.Add_edit_window,
+              text=dt.today().strftime('%d %B %Y %H:%M:%S'),
+              font=('Times New Roman', 12, 'bold italic')
+              ).place(x=10, y=90)
+        Label(self.Add_edit_window,
+              text=LANGUAGE[self.language]['lab_addedit_font'],
+              font=('Times New Roman', 12, 'bold italic'),
+              ).place(relx=.7, y=50)
+        self.input_addedit_font = Combobox(
+            self.Add_edit_window,
+            font=('Times New Roman',
+                  12,
+                  'bold italic'),
+            state='readonly')
+        if doing == 'EDIT':
+            self.input_addedit_font.set(addedit_all[3])
+        else:
+            self.input_addedit_font.set('Arial')
+        self.input_addedit_font['values'] = FONT
+        self.input_addedit_font.place(relx=.76, y=50, relwidth=.2, height=23)
+        Label(self.Add_edit_window,
+              font=('Times New Roman', 13, 'bold italic'),
+              text=LANGUAGE[self.language]['lab_addedit_size']
+              ).place(y=90, relx=.7)
+        spinval_addedit = IntVar()
+        if doing == 'EDIT':
+            spinval_addedit.set(addedit_all[4])
+        else:
+            spinval_addedit.set(12)
+        self.input_size_addedit = Spinbox(
+            self.Add_edit_window,
+            from_=8,
+            to=16,
+            textvariable=spinval_addedit,
+            font=('Times New Roman', 12, 'bold italic'),
+            foreground='black',
+            state='readonly'
+        )
+        self.input_size_addedit.place(relx=.76, y=85, relwidth=.05)
+        self.text_addedit = Text(
+            self.Add_edit_window,
+            wrap=WORD,
+        )
+        if doing == 'EDIT':
+            self.text_addedit.insert(1.0, addedit_all[2])
+            self.text_addedit['font'] = (addedit_all[3], addedit_all[4])
+        self.text_addedit.place(y=120, relwidth=1, relheight=.8795)
+
+        Button(self.Add_edit_window, text=LANGUAGE[self.language]['btn_addedit_apply'],
+               command=lambda: apply()
+               ).place(relx=.5, y=60, anchor='c')
+        Button(self.Add_edit_window, text=LANGUAGE[self.language]['btn_addedit_save'],
+               command=lambda: save()
+               ).place(relx=.5, y=100, anchor='c')
+
+        self.Add_edit_window.mainloop()
 
 
 while start:
