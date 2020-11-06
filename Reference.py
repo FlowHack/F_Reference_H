@@ -1,5 +1,4 @@
 from sqlite3 import connect
-from datetime import date
 from datetime import datetime as dt
 from os import getcwd
 from os import listdir
@@ -32,7 +31,6 @@ from webbrowser import open as webopen
 from time import sleep
 
 start: bool = True
-DATE_FORMAT = '%d.%m.%Y'
 LANGUAGE = {
     'Russian': {
         'main_block': 'Главная',
@@ -78,7 +76,7 @@ LANGUAGE = {
         'btn_optimaze': 'Optimize',
         'lab_shortcat_id': 'Keyboard shortcuts only work on the English keyboard layout (<Ctrl+A> - Select All, '
                            '<Ctrl+C> - Copy, <Ctrl+X> - Cut, <Ctrl+V> - Insert)',
-        'lab_set_name': 'Name',
+        'lab_set_name': 'Title',
         'lab_set_font': 'Font',
         'lab_set_size': 'Size',
         'input_set_bold': 'Boldface',
@@ -92,6 +90,13 @@ LANGUAGE = {
         'lab_input_rep_addfile': 'Select a file by clicking the button ==>',
         'lab_rep_text_vk': 'You can write on the social network Vkontakte, just click ==>',
         'lbl_help_sait': 'You can open the full and well-designed version of help, just click ==>',
+        'lbl_add_main': 'Adding an entry to a block',
+        'lbl_edit_main': 'Editing an entry from a block',
+        'lab_addedit_name': 'Title',
+        'lab_addedit_font': 'Font',
+        'lab_addedit_size': 'Size',
+        'btn_addedit_apply': 'To apply to the text',
+        'btn_addedit_save': 'Save',
     }
 }
 ERROR = {
@@ -100,10 +105,44 @@ ERROR = {
 
 Возможно вы не выбрали удаляемую запись!
 
-Если решить ошибку не удастся самостоятельно, то напишите в соответствующем блоке верхнего меню приложения. Хорошего дня!'''
+Если решить ошибку не удастся самостоятельно, то напишите в соответствующем блоке верхнего меню приложения. Хорошего дня!''',
+        'addedit_name': '''Похоже, что длина введеного вами имени документа длиннее 40 сиволов!
+
+Исправить эту ошибку! <Краткость - сестра таланта>''',
+        'settings_title_ONE': '''Похоже, что длина введеного вами имени в первом документе длиннее 40 сиволов!
+
+Исправьте эту ошибку! <Краткость - сестра таланта>''',
+        'settings_title_TWO': '''Похоже, что длина введеного вами имени во втором документе длиннее 40 сиволов!
+
+Исправьте эту ошибку! <Краткость - сестра таланта>''',
+        'settings_title_is_empty_ONE': '''Похоже, что вы ввели пустую строку в навзании первого документа!
+        
+Исправьте эту ошибку! А то что-то слишком пусто получается :)''',
+        'settings_title_is_empty_TWO': '''Похоже, что длина введеного вами имени во втором документе длиннее 40 сиволов!
+
+Исправьте эту ошибку! <Краткость - сестра таланта>''',
     },
     'Englsh': {
+        'delete': '''An unexpected error occurred!
 
+You may not have selected the record to delete!
+
+If you can't solve the error yourself, write in the corresponding block in the top menu of the app. Have a nice day!''',
+        'addedit_name': '''It seems that the length you entered for the document name is longer than 40 character's!
+
+Fix this error! < Brevity is the sister of talent>''',
+        'settings_title_ONE': '''It seems that the length of the name you entered in the first document is longer than 40 sivolov!
+
+Fix this error! < Brevity is the sister of talent>''',
+        'settings_title_TWO': '''It seems that the length of the name you entered in the second document is longer than 40 sivolov!
+
+Fix this error! < Brevity is the sister of talent>''',
+        'settings_title_is_empty_ONE': '''It looks like you entered an empty string in the first document's title!
+        
+Fix this error! And then something is too empty turns out :)''',
+        'settings_title_is_empty_TWO': '''It seems that the length of the name you entered in the second document is longer than 40 sivolov!
+
+Fix this error! < Brevity is the sister of talent>''',
     }
 }
 LANGUAGE_LIST = ['Russian', 'English']
@@ -160,7 +199,7 @@ class Chek_value:
             str(list_values[0][1]),
             str(list_values[0][2]),
             int(list_values[0][3]),
-            str(f'{list_values[0][4]} {list_values[0][5]} {list_values[0][6]}')
+            f'{list_values[0][4]} {list_values[0][5]} {list_values[0][6]}'
         ]
 
         list_two = [
@@ -168,7 +207,7 @@ class Chek_value:
             str(list_values[1][1]),
             str(list_values[1][2]),
             int(list_values[1][3]),
-            str(f'{list_values[1][4]} {list_values[1][5]} {list_values[1][6]}')
+            f'{list_values[1][4]} {list_values[1][5]} {list_values[1][6]}'
         ]
 
         return list_one, list_two
@@ -182,22 +221,23 @@ class Chek_value:
         return list_records_one, list_records_two
 
     def chek_sql(self):
+        date = dt.now().strftime('%d %B %Y %H:%M:%S')
         DEFAULT_VALUE_LIST = [
             ('ONE', 'Блок_1', 'Times New Roman', 12, 'bold', 'roman', ''),  # 40 8 16
             ('TWO', 'Блок_2', 'Times New Roman', 12, 'normal', 'italic', 'underline')
         ]
         DEFAULT_RECORDS_LIST = [
-            ('ONE', 'Проверочная_запись_1', 'Проверочная_запись_1', 'Times New Roman', 12, date.today()),
-            ('TWO', 'Проверочная_запись_2', 'Проврочная_запись_2', 'Times New Roman', 12, date.today())
+            ('ONE', 'Проверочная_запись_1', 'Проверочная_запись_1', 'Times New Roman', 12, date),
+            ('TWO', 'Проверочная_запись_2', 'Проврочная_запись_2', 'Times New Roman', 12, date)
         ]
         self.cursor_sql.execute("""CREATE TABLE IF NOT EXISTS list_block(
         main_name TEXT,
         name TEXT,
         font TEXT,
         size INT,
-        bold TEXT,
-        italic TEXT,
-        underline TEXT)""")
+        bolds TEXT,
+        italics TEXT,
+        underlines TEXT)""")
         self.connect_sql.commit()
         self.cursor_sql.execute("""CREATE TABLE IF NOT EXISTS list_records(
                 name_list TEXT,
@@ -225,7 +265,6 @@ class Chek_value:
 
 
 class Actions:
-
     def completion_list(self, start_list=bool(True)):
         counter = 1
         self.list_block_1.delete(0, END)
@@ -267,6 +306,68 @@ class Actions:
             return str(where.get(where.curselection()).split()[1])
         except:
             showerror('Error', ERROR[self.language]['delete'])
+
+    def completion_settings(self):
+        def completion_bold_italic_underline(name, value, value_else):
+            if name == bool(True):
+                return value
+            if name == bool(False):
+                return value_else
+
+        title_ONE, title_TWO = self.input_name_1.get(), self.input_name_2.get()
+        font_ONE, font_TWO = self.input_font_1.get(), self.input_font_2.get()
+        size_ONE, size_TWO = self.spinval_1.get(), self.spinval_2.get()
+        bold_ONE = completion_bold_italic_underline(self.chk_bold_1.get(), 'bold', 'normal')
+        bold_TWO = completion_bold_italic_underline(self.chk_bold_2.get(), 'bold', 'normal')
+        italic_ONE = completion_bold_italic_underline(self.chk_italic_1.get(), 'italic', 'roman')
+        italic_TWO = completion_bold_italic_underline(self.chk_italic_2.get(), 'italic', 'roman')
+        underline_ONE = completion_bold_italic_underline(self.chk_underline_1.get(), 'underline', '')
+        underline_TWO = completion_bold_italic_underline(self.chk_underline_2.get(), 'underline', '')
+        other_block, language = self.chk_other_block.get(), self.input_language.get()
+
+        try:
+            if len(title_ONE) > 40:
+                raise NameError('The first line is longer than 40')
+            if len(title_TWO) > 40:
+                raise NameError('The second line is longer than 40')
+            if title_ONE == '':
+                raise NameError('Empty string in the first')
+            if title_TWO == '':
+                raise NameError('Empty string in the second')
+
+
+            self.cursor_sql.execute(f'''UPDATE list_block
+                        SET name = "{title_ONE}",
+                        font = "{font_ONE}",
+                        size = {size_ONE},
+                        bolds = "{bold_ONE}",
+                        italics = "{italic_ONE}",
+                        underlines = "{underline_ONE}"
+                        WHERE main_name = "ONE"''')
+            self.connect_sql.commit()
+            self.cursor_sql.execute(f'''UPDATE list_block
+                        SET name = "{title_TWO}",
+                        font = "{font_TWO}",
+                        size = {size_TWO},
+                        bolds = "{bold_TWO}",
+                        italics = "{italic_TWO}",
+                        underlines = "{underline_TWO}"
+                        WHERE main_name = "TWO"''')
+            self.connect_sql.commit()
+            self.cursor_sql.execute(f'''UPDATE settings
+                                    SET other_block = {other_block},
+                                    language = "{language}"''')
+            self.connect_sql.commit()
+            self.Main_window.destroy()
+        except NameError as error:
+            if str(error) == 'The first line is longer than 40':
+                showerror('Error', ERROR[self.language]['settings_title_ONE'])
+            if str(error) == 'The second line is longer than 40':
+                showerror('Error', ERROR[self.language]['settings_title_TWO'])
+            if str(error) == 'Empty string in the first':
+                showerror('Error', ERROR[self.language]['settings_title_is_empty_ONE'])
+            if str(error) == 'Empty string in the second':
+                showerror('Error', ERROR[self.language]['settings_title_is_empty_TWO'])
 
     @staticmethod
     def open_webbrowser(url: str):
@@ -426,7 +527,7 @@ class Build(Chek_value, Actions):
         self.scroll_list_block_2 = Scrollbar(self.list_block_2, orient='vertical')
         self.scroll_list_block_2.pack(side='right', fill='y')
 
-        # !!!!!!BUILD_OTHER_BLOCK!!!!!!
+# !!!!!!BUILD_OTHER_BLOCK!!!!!!
         if self.start_other_block == 1:
             self.notebook_other = Notebook(self.other_block)
             self.optimization_block = Frame(self.notebook_other)
@@ -462,7 +563,7 @@ class Build(Chek_value, Actions):
             self.optimaze_flowhack_2.bind('<Button-1>',
                                           lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
 
-        # !!!!!! BUILD_SETTINGS_BLOCK !!!!!!
+# !!!!!! BUILD_SETTINGS_BLOCK !!!!!!
 
         self.frame_optimization_1 = Frame(self.settings_block, borderwidth=2, relief='ridge')
         self.frame_optimization_1.place(relwidth=.5, relheight=0.6)
@@ -496,47 +597,47 @@ class Build(Chek_value, Actions):
             text=LANGUAGE[self.language]['lab_set_size'],
             font=('Times New Roman', 13, 'bold italic')
         ).place(relx=.05, y=150)
-        spinval_1 = IntVar()
-        spinval_1.set(self.value_ONE[3])
+        self.spinval_1 = IntVar()
+        self.spinval_1.set(self.value_ONE[3])
         self.input_size_1 = Spinbox(
             self.frame_optimization_1,
             from_=8,
             to=16,
-            textvariable=spinval_1,
+            textvariable=self.spinval_1,
             font=('Times New Roman', 12, 'bold italic'),
             foreground='black',
             state='readonly'
         )
         self.input_size_1.place(relx=.2, y=150)
-        chk_bold_1 = BooleanVar()
+        self.chk_bold_1 = BooleanVar()
         if 'bold' in self.value_ONE[4]:
-            chk_bold_1.set(bool(True))
+            self.chk_bold_1.set(bool(True))
         else:
-            chk_bold_1.set(bool(False))
+            self.chk_bold_1.set(bool(False))
         self.input_set_bold_1 = Checkbutton(
             self.frame_optimization_1,
             text=LANGUAGE[self.language]['input_set_bold'],
-            var=chk_bold_1
+            var=self.chk_bold_1
         ).place(relx=.05, y=250)
-        chk_italic_1 = BooleanVar()
+        self.chk_italic_1 = BooleanVar()
         if 'italic' in self.value_ONE[4]:
-            chk_italic_1.set(bool(True))
+            self.chk_italic_1.set(bool(True))
         else:
-            chk_italic_1.set(bool(False))
-        self.input_set_bold_1 = Checkbutton(
+            self.chk_italic_1.set(bool(False))
+        self.input_set_italic_1 = Checkbutton(
             self.frame_optimization_1,
             text=LANGUAGE[self.language]['input_set_italic'],
-            var=chk_italic_1
+            var=self.chk_italic_1
         ).place(relx=.3, y=250)
-        chk_underline_1 = BooleanVar()
-        if 'italic' in self.value_ONE[4]:
-            chk_underline_1.set(bool(True))
+        self.chk_underline_1 = BooleanVar()
+        if 'underline' in self.value_ONE[4]:
+            self.chk_underline_1.set(bool(True))
         else:
-            chk_underline_1.set(bool(False))
-        self.input_set_bold_1 = Checkbutton(
+            self.chk_underline_1.set(bool(False))
+        self.input_set_underline_1 = Checkbutton(
             self.frame_optimization_1,
             text=LANGUAGE[self.language]['input_set_underline'],
-            var=chk_underline_1
+            var=self.chk_underline_1
         ).place(relx=.5, y=250)
 
         self.frame_optimization_2 = Frame(self.settings_block, borderwidth=2, relief='ridge')
@@ -574,56 +675,56 @@ class Build(Chek_value, Actions):
             text=LANGUAGE[self.language]['lab_set_size'],
             font=('Times New Roman', 13, 'bold italic')
         ).place(relx=.05, y=150)
-        spinval_2 = IntVar()
-        spinval_2.set(self.value_TWO[3])
+        self.spinval_2 = IntVar()
+        self.spinval_2.set(self.value_TWO[3])
         self.input_size_2 = Spinbox(
             self.frame_optimization_2,
             from_=8,
             to=16,
-            textvariable=spinval_2,
+            textvariable=self.spinval_2,
             font=('Times New Roman', 12, 'bold italic'),
             foreground='black',
             state='readonly'
         ).place(relx=.2, y=150)
-        chk_bold_2 = BooleanVar()
+        self.chk_bold_2 = BooleanVar()
         if 'bold' in self.value_TWO[4]:
-            chk_bold_2.set(bool(True))
+            self.chk_bold_2.set(bool(True))
         else:
-            chk_bold_2.set(bool(False))
+            self.chk_bold_2.set(bool(False))
         self.input_set_bold_2 = Checkbutton(
             self.frame_optimization_2,
             text=LANGUAGE[self.language]['input_set_bold'],
-            var=chk_bold_2
+            var=self.chk_bold_2
         ).place(relx=.05, y=250)
-        chk_italic_2 = BooleanVar()
+        self.chk_italic_2 = BooleanVar()
         if 'italic' in self.value_TWO[4]:
-            chk_italic_2.set(bool(True))
+            self.chk_italic_2.set(bool(True))
         else:
-            chk_italic_2.set(bool(False))
-        self.input_set_bold_2 = Checkbutton(
+            self.chk_italic_2.set(bool(False))
+        self.input_set_italic_2 = Checkbutton(
             self.frame_optimization_2,
             text=LANGUAGE[self.language]['input_set_italic'],
-            var=chk_italic_2
+            var=self.chk_italic_2
         ).place(relx=.3, y=250)
-        chk_underline_2 = BooleanVar()
-        if 'italic' in self.value_TWO[4]:
-            chk_underline_2.set(bool(True))
+        self.chk_underline_2 = BooleanVar()
+        if 'underline' in self.value_TWO[4]:
+            self.chk_underline_2.set(bool(True))
         else:
-            chk_underline_2.set(bool(False))
-        self.input_set_bold_2 = Checkbutton(
+            self.chk_underline_2.set(bool(False))
+        self.input_set_underline_2 = Checkbutton(
             self.frame_optimization_2,
             text=LANGUAGE[self.language]['input_set_underline'],
-            var=chk_underline_2
+            var=self.chk_underline_2
         ).place(relx=.5, y=250)
 
         self.frame_optimization_3 = Frame(self.settings_block, borderwidth=2, relief='ridge')
         self.frame_optimization_3.place(relx=.025, rely=.6, relwidth=.95, relheight=.2)
-        chk_other_block = BooleanVar()
-        chk_other_block.set(bool(self.start_other_block))
+        self.chk_other_block = BooleanVar()
+        self.chk_other_block.set(bool(self.start_other_block))
         self.set_onoff_other_block = Checkbutton(
             self.frame_optimization_3,
             text=LANGUAGE[self.language]['set_onoff_other_block'],
-            var=chk_other_block
+            var=self.chk_other_block
         ).place(relx=.5, y=17, anchor='c')
         Label(
             self.frame_optimization_3,
@@ -638,9 +739,10 @@ class Build(Chek_value, Actions):
         self.input_language.set(self.language)
         self.input_language['values'] = LANGUAGE_LIST
         self.input_language.place(relx=.59, y=50, anchor='c')
-        self.set_ok = Button(self.settings_block, image=ok).place(relx=.5, rely=.95, anchor='c')
+        self.set_ok = Button(self.settings_block, image=ok, command=self.completion_settings).place(relx=.5, rely=.95,
+                                                                                                    anchor='c')
 
-        # !!!!!! BUILD_REPORT_BLOCK !!!!!!
+# !!!!!! BUILD_REPORT_BLOCK !!!!!!
         Label(
             self.report_block,
             text=LANGUAGE[self.language]['lab_rep_email'],
@@ -736,20 +838,48 @@ class Build(Chek_value, Actions):
 
     def Add_edit(self, doing, name_list, name_record=None):
         def apply():
-            pass
+            return self.text_addedit.configure(font=(self.input_addedit_font.get(), self.input_size_addedit.get()))
 
         def save():
-            pass
+            name = self.input_addedit_name.get()
+            font = self.input_addedit_font.get()
+            size = self.input_size_addedit.get()
+            text = self.text_addedit.get(1.0, END)
+            try:
+                if len(name) > 40:
+                    raise NameError
+
+                if doing == 'EDIT':
+                    self.cursor_sql.execute(f'''UPDATE list_records
+                    SET name = "{name}",
+                    text = "{text}",
+                    font = "{font}",
+                    size = {size}
+                    WHERE (name = "{name_record}") and (name_list = "{name_list}")''')
+                else:
+                    self.cursor_sql.execute(
+                        f'INSERT INTO list_records VALUES ("{name_list}",'
+                        f' "{self.input_addedit_name.get()}",'
+                        f' "{self.text_addedit.get(1.0, END)}",'
+                        f' "{self.input_addedit_font.get()}",'
+                        f' {self.input_size_addedit.get()},'
+                        f' "{self.date_add}")'
+                    )
+
+                self.connect_sql.commit()
+                self.Add_edit_window.destroy()
+                self.completion_list()
+            except NameError:
+                showerror('Error', ERROR[self.language]['addedit_name'])
 
         if doing == 'ADD':
+            self.date_add = dt.now().strftime('%d %B %Y %H:%M:%S')
             if name_list == 'ONE':
                 text_main = f'{LANGUAGE[self.language]["lbl_add_main"]} <{self.value_ONE[1]}>'
             else:
                 text_main = f'{LANGUAGE[self.language]["lbl_add_main"]} <{self.value_TWO[1]}>'
         else:
             text_main = f'{LANGUAGE[self.language]["lbl_edit_main"]} <{self.value_ONE[1]}>'
-
-        if doing == 'EDIT':
             self.cursor_sql.execute(f'SELECT * FROM list_records WHERE (name_list = "{name_list}") and '
                                     f'(name = "{name_record}")')
             addedit_all = self.cursor_sql.fetchone()
@@ -760,6 +890,7 @@ class Build(Chek_value, Actions):
         x = (self.Add_edit_window.winfo_screenwidth() - self.Add_edit_window.winfo_reqwidth()) / 4
         y = (self.Add_edit_window.winfo_screenheight() - self.Add_edit_window.winfo_reqheight()) / 4
         self.Add_edit_window.wm_geometry("+%d+%d" % (x - 50, y - 180))
+        self.Add_edit_window.bind('<Control-Key-s>', lambda no_matter: save())
         self.Add_edit_window.iconphoto(True, PhotoImage(file='settings/ico/ico_main.png'))
 
         frame = Frame(self.Add_edit_window, borderwidth=0.5, relief='solid')
@@ -783,10 +914,16 @@ class Build(Chek_value, Actions):
         if doing == 'EDIT':
             self.input_addedit_name.insert(END, addedit_all[1])
         self.input_addedit_name.place(x=90, y=50, relwidth=.25, height=23)
-        Label(self.Add_edit_window,
-              text=dt.today().strftime('%d %B %Y %H:%M:%S'),
-              font=('Times New Roman', 12, 'bold italic')
-              ).place(x=10, y=90)
+        if doing == 'EDIT':
+            Label(self.Add_edit_window,
+                  text=addedit_all[5],
+                  font=('Times New Roman', 12, 'bold italic')
+                  ).place(x=10, y=90)
+        else:
+            Label(self.Add_edit_window,
+                  text=self.date_add,
+                  font=('Times New Roman', 12, 'bold italic')
+                  ).place(x=10, y=90)
         Label(self.Add_edit_window,
               text=LANGUAGE[self.language]['lab_addedit_font'],
               font=('Times New Roman', 12, 'bold italic'),
