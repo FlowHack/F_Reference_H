@@ -1,11 +1,25 @@
 from sqlite3 import connect
 from datetime import datetime as dt
+from datetime import timedelta
 from os import getcwd
 from os import listdir
 from os import mkdir
 from os import path
+from os.path import exists
+from os.path import isfile
 from os import name
 from sys import exit as exit_ex
+from email import encoders
+from email.mime.audio import MIMEAudio
+from email.mime.base import MIMEBase
+from email.mime.image import MIMEImage
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from smtplib import SMTPAuthenticationError
+from smtplib import SMTP_SSL
+from smtplib import SMTP
+from ssl import create_default_context
+from mimetypes import guess_type
 from ttkthemes import ThemedTk
 from tkinter.ttk import Frame
 from tkinter.ttk import Notebook
@@ -15,22 +29,22 @@ from tkinter.ttk import Combobox
 from tkinter.ttk import Spinbox
 from tkinter.ttk import Checkbutton
 from tkinter.messagebox import showerror
+from tkinter.filedialog import askopenfilename
 from tkinter import WORD
 from tkinter import BooleanVar
 from tkinter import IntVar
 from tkinter import Text
 from tkinter import Listbox
 from tkinter import END
-from tkinter import Tk
 from tkinter import Toplevel
 from tkinter import PhotoImage
 from PIL import Image, ImageTk
 from tkinter.ttk import Button
 from tkinter.ttk import Label
 from webbrowser import open as webopen
-from time import sleep
 
 start: bool = True
+DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 LANGUAGE = {
     'Russian': {
         'main_block': 'Главная',
@@ -64,6 +78,8 @@ LANGUAGE = {
         'lab_addedit_size': 'Размер',
         'btn_addedit_apply': 'Применить к тексту',
         'btn_addedit_save': 'Сохранить',
+        'send_email_great': 'Все отлично! Сообщение отправлено!',
+        'send_email_wait': 'Если в течение 5-15 секунд это сообщение не отправится, то произошла ошибка!',
     },
     'English': {
         'main_block': 'Main',
@@ -97,6 +113,8 @@ LANGUAGE = {
         'lab_addedit_size': 'Size',
         'btn_addedit_apply': 'To apply to the text',
         'btn_addedit_save': 'Save',
+        'send_email_great': 'Everything is great! The message was sent!',
+        'send_email_wait': 'If this message is not sent within 5-15 seconds, an error has occurred!',
     }
 }
 ERROR = {
@@ -121,6 +139,36 @@ ERROR = {
         'settings_title_is_empty_TWO': '''Похоже, что длина введеного вами имени во втором документе длиннее 40 сиволов!
 
 Исправьте эту ошибку! <Краткость - сестра таланта>''',
+        'report_gmail': """Неправильный логин или пароль!
+
+Мы заметили, что вы отправляете сообщение с почты @gmail.com, возможно у вас запрещена отправка из неизвестных 
+источников,тогда для решения проблемы перейдите по ссылке, которую мы сейчас добавили в текстовое поле,
+и включите функцию отправки сообщений из неизвестных источников! Также вы можете использовать просто другую почту.
+
+Внимание! После отправки сообщения обязательно выключите функцию на сайте!
+
+Мы не несём ответственность за совершенные вами действия! """,
+        'report_connect': """Произошла непредвиденная ошибка!
+        
+Пожалуйста, проверьте ваше подключение к сети, перезапустите программу. Если не получается исправить ошибку, 
+то напишите об ошибке в соостветствующей вкладке приложения, мы поможем :)
+
+Если не получается исправить ошибку, то напишите об ошибке в соостветствующей вкладке приложения, мы поможем :)""",
+        'report_title_addr_is_empty': """Вы не заполнили поле EMAIL!
+        
+Заполните его, оно обязательно)""",
+        'report_password_is_empty': """Вы не заполнили поле Пароль!
+        
+Заполните его, оно обязательно)""",
+        'report_message_is_empty': """Вы не написали сообщение! Оно для вас шутка?
+        
+Заполните его, оно обязательно)""",
+        'report_time': """В целях безопасности мы запретили отправлять сообщения чаше, чем 1 раз в час.
+        
+Можете написать через {time_ost:0.0f} мин.""",
+        'report_message_too_short': """Вы написали слишком короткое сообщение, врятли вы смогли хорошо в нём изложить свою мысль!
+        
+Изложите её развёрнуто, не менее 30 символов! Нам ещё надо это понять и исправить!""",
     },
     'Englsh': {
         'delete': '''An unexpected error occurred!
@@ -143,16 +191,47 @@ Fix this error! And then something is too empty turns out :)''',
         'settings_title_is_empty_TWO': '''It seems that the length of the name you entered in the second document is longer than 40 sivolov!
 
 Fix this error! < Brevity is the sister of talent>''',
+        'report_gmail': """Incorrect username or password!
+
+We noticed that you are sending a message from your email @gmail.com, you may not be allowed to send from unknown sources 
+so, to solve the problem, follow the link that we have now added to the text field,
+and enable the function of sending messages from unknown sources!
+
+Attention! After sending the message, be sure to turn off the function on the site!
+
+We are not responsible for your actions!""",
+        'report_connect': """An unexpected error occurred!
+
+Please check your network connection and restart the program. If you can't fix the error, 
+then write about the error in the corresponding tab of the app, we will help you :)
+
+If you can't fix the error, then write about the error in the corresponding app tab, and we will help you :)""",
+        'report_title_addr_is_empty': """You didn't fill in the EMAIL field!
+
+Fill it out, it's mandatory)""",
+        'report_password_is_empty': """You didn't fill in the Password field!
+
+Fill it out, it's mandatory)""",
+        'report_message_is_empty': """You didn't write the message! Is it a joke to you?
+
+Fill it out, it's mandatory)""",
+        'report_time': """For security reasons, we have forbidden sending messages more than 1 time per hour.
+
+You can write via {time_ost:0.0 f} min.""",
+        'report_message_too_short': """You wrote too short a message, I don't think you were able to Express your idea well in it!
+
+State it in detail, at least 30 characters! We still need to understand and fix it!""",
+
     }
 }
 LANGUAGE_LIST = ['Russian', 'English']
-FONT = ['Times New Roman', 'Calibri', 'Arial']
+FONT = ['Times New Roman', 'Calibri', 'Arial', 'Helvetica', 'Courier']
 VALUE_MAIL = ['list.ru', 'bk.ru', 'inbox.ru', 'mail.ru', 'gmail.com']
-
 
 class Chek_value:
     def __init__(self):
         self.path = getcwd()
+        self.url_to_file = ''
 
         # Create folder settings
         if 'settings' in listdir(self.path):
@@ -172,15 +251,19 @@ class Chek_value:
         if 'settings.db' in listdir(self.path_settings):
             self.connect_sql = connect(f'{self.path_settings}/settings.db')
             self.cursor_sql = self.connect_sql.cursor()
+            list_sqls = list(record[0] for record in self.cursor_sql.execute
+            ('select name from sqlite_master where type = "table"').fetchall())
+            self.chek_sql(list_sqls)
+
         else:
             self.connect_sql = connect(f'{self.path_settings}/settings.db')
             self.cursor_sql = self.connect_sql.cursor()
-            self.chek_sql()
+            self.completion_sql()
 
         self.value_ONE, self.value_TWO = self.create_list_values()
         self.list_record_ONE, self.list_record_TWO = self.create_value_records()
 
-        self.start_other_block, self.launch, self.language = self.settings_app()[0]
+        self.start_other_block, self.launch, self.language, self.send_date = self.settings_app()[0]
 
     def settings_app(self):
         self.cursor_sql.execute('SElECT * FROM settings')
@@ -220,48 +303,74 @@ class Chek_value:
 
         return list_records_one, list_records_two
 
-    def chek_sql(self):
-        date = dt.now().strftime('%d %B %Y %H:%M:%S')
+    def sql_list_block(self):
         DEFAULT_VALUE_LIST = [
             ('ONE', 'Блок_1', 'Times New Roman', 12, 'bold', 'roman', ''),  # 40 8 16
             ('TWO', 'Блок_2', 'Times New Roman', 12, 'normal', 'italic', 'underline')
         ]
+        self.cursor_sql.execute("""CREATE TABLE IF NOT EXISTS list_block(
+                main_name TEXT,
+                name TEXT,
+                font TEXT,
+                size INT,
+                bolds TEXT,
+                italics TEXT,
+                underlines TEXT)""")
+        self.connect_sql.commit()
+        self.cursor_sql.executemany("INSERT INTO list_block VALUES (?,?,?,?,?,?,?)", DEFAULT_VALUE_LIST)
+        self.connect_sql.commit()
+
+    def sql_list_records(self):
+        date = dt.now()
         DEFAULT_RECORDS_LIST = [
             ('ONE', 'Проверочная_запись_1', 'Проверочная_запись_1', 'Times New Roman', 12, date),
             ('TWO', 'Проверочная_запись_2', 'Проврочная_запись_2', 'Times New Roman', 12, date)
         ]
-        self.cursor_sql.execute("""CREATE TABLE IF NOT EXISTS list_block(
-        main_name TEXT,
-        name TEXT,
-        font TEXT,
-        size INT,
-        bolds TEXT,
-        italics TEXT,
-        underlines TEXT)""")
-        self.connect_sql.commit()
         self.cursor_sql.execute("""CREATE TABLE IF NOT EXISTS list_records(
-                name_list TEXT,
-                name TEXT,
-                text TEXT,
-                font TEXT,
-                size INT,
-                date TEXT)""")
-        self.connect_sql.commit()
-        self.cursor_sql.executemany("INSERT INTO list_block VALUES (?,?,?,?,?,?,?)", DEFAULT_VALUE_LIST)
+                        name_list TEXT,
+                        name TEXT,
+                        text TEXT,
+                        font TEXT,
+                        size INT,
+                        date TEXT)""")
         self.connect_sql.commit()
         self.cursor_sql.executemany("INSERT INTO list_records VALUES (?,?,?,?,?,?)", DEFAULT_RECORDS_LIST)
         self.connect_sql.commit()
+
+    def sql_optimaze(self):
         self.cursor_sql.execute("""CREATE TABLE IF NOT EXISTS optimaze(
-                name TEXT,
-                turn_out INT)""")
+                        name TEXT,
+                        turn_out INT)""")
         self.connect_sql.commit()
+
+    def sql_settings(self):
+        date = dt.now()
+
         self.cursor_sql.execute("""CREATE TABLE IF NOT EXISTS settings(
-                        other_block BOOLEAN,
-                        launch BOOLEAN,
-                        language TEXT)""")
+                                other_block BOOLEAN,
+                                launch BOOLEAN,
+                                language TEXT,
+                                send_email TEXT)""")
         self.connect_sql.commit()
-        self.cursor_sql.execute("INSERT INTO settings VALUES (True, True, 'Russian')")
+        self.cursor_sql.execute(
+            f"INSERT INTO settings VALUES (True, True, 'Russian', '{(date - timedelta(hours=1)).strftime(DATE_FORMAT)}')")
         self.connect_sql.commit()
+
+    def chek_sql(self, list_sql):
+        if 'list_block' not in list_sql:
+            self.sql_list_block()
+        if 'list_records' not in list_sql:
+            self.sql_list_records()
+        if 'optimaze' not in list_sql:
+            self.sql_optimaze()
+        if 'settings' not in list_sql:
+            self.sql_settings()
+
+    def completion_sql(self):
+        self.sql_list_block()
+        self.sql_list_records()
+        self.sql_optimaze()
+        self.sql_settings()
 
 
 class Actions:
@@ -335,7 +444,6 @@ class Actions:
             if title_TWO == '':
                 raise NameError('Empty string in the second')
 
-
             self.cursor_sql.execute(f'''UPDATE list_block
                         SET name = "{title_ONE}",
                         font = "{font_ONE}",
@@ -369,6 +477,134 @@ class Actions:
             if str(error) == 'Empty string in the second':
                 showerror('Error', ERROR[self.language]['settings_title_is_empty_TWO'])
 
+    def delete_all(self):
+        self.input_rep_expancion.delete(0, END)
+        self.input_rep_pas.delete(0, END)
+        self.input_rep_email.delete(0, END)
+        self.send_date = dt.now().strftime(DATE_FORMAT)
+        self.cursor_sql.execute(f'UPDATE settings SET send_email = "{self.send_date}"')
+        self.connect_sql.commit()
+        self.text_rep.delete(1.0, END)
+        self.text_rep.insert(END, LANGUAGE[self.language]['send_email_great'])
+        self.text_rep.config(fg='GREEN', font=('Times New Roman', 15, 'bold italic'))
+
+    def sent_email(self):
+        date = dt.now()
+        time_difference = date - dt.strptime(self.send_date, DATE_FORMAT)
+        time_difference_in_hour = time_difference / timedelta(hours=1)
+        if round(time_difference_in_hour) >= 1:
+            try:
+                addr_from = self.input_rep_email.get()
+                password = self.input_rep_pas.get()
+                msg_text = self.text_rep.get(1.0, END)
+                smtp_obj = self.input_rep_expancion.get()
+                if addr_from == '':
+                    raise NameError('Empty mail field')
+                if password == '':
+                    raise NameError('Empty password field')
+                if msg_text == '':
+                    raise NameError('Empty message field')
+                if len(msg_text) < 30:
+                    raise NameError('Message too short')
+                url = self.url_to_file
+                if smtp_obj in 'list.ru':
+                    port = 'smtp.list.ru'
+                elif smtp_obj == 'bk.ru':
+                    port = 'smtp.bk.ru'
+                elif smtp_obj == 'inbox.ru':
+                    port = 'smtp.inbox.ru'
+                elif smtp_obj == 'mail.ru':
+                    port = 'smtp.mail.ru'
+                elif smtp_obj == 'gmail.com':
+                    port = 'smtp.gmail.com'
+
+                def send_email(addr_to, addr_from, password, msg_text, files):
+
+                    msg = MIMEMultipart()  # Создаем сообщение
+                    msg['From'] = addr_from + '@' + smtp_obj  # Адресат
+                    msg['To'] = addr_to  # Получатель
+                    msg['Subject'] = 'F_Reference_H'  # Тема сообщения
+
+                    body = msg_text  # Текст сообщения
+                    msg.attach(MIMEText(body, 'plain'))
+
+                    process_attachement(msg, files)
+
+                    server = SMTP_SSL(port, 465)
+                    self.text_rep.delete(1.0, END)
+                    self.text_rep.insert(END, LANGUAGE[self.language]['send_email_wait'])
+                    self.text_rep.config(fg='red', font=('Times New Roman', 15, 'bold italic'))
+                    server.login(addr_from, password)
+                    server.send_message(msg)
+                    server.quit()
+                    self.delete_all()
+
+                def process_attachement(msg, files):
+                    for f in files:
+                        if isfile(f):
+                            attach_file(msg, f)
+                        elif exists(f):
+                            dir = listdir(f)
+                            for file in dir:
+                                attach_file(msg, f + "/" + file)
+
+                def attach_file(msg, filepath):
+                    filename = path.basename(filepath)
+                    ctype, encoding = guess_type(filepath)
+                    if ctype is None or encoding is not None:
+                        ctype = 'application/octet-stream'
+                    maintype, subtype = ctype.split('/', 1)
+                    if maintype == 'text':
+                        with open(filepath) as fp:
+                            file = MIMEText(fp.read(), _subtype=subtype)
+                            fp.close()
+                    elif maintype == 'image':
+                        with open(filepath, 'rb') as fp:
+                            file = MIMEImage(fp.read(), _subtype=subtype)
+                            fp.close()
+                    elif maintype == 'audio':
+                        with open(filepath, 'rb') as fp:
+                            file = MIMEAudio(fp.read(), _subtype=subtype)
+                            fp.close()
+                    else:
+                        with open(filepath, 'rb') as fp:
+                            file = MIMEBase(maintype, subtype)
+                            file.set_payload(fp.read())
+                            fp.close()
+                            encoders.encode_base64(file)
+                    file.add_header('Content-Disposition', 'attachment', filename=filename)
+                    msg.attach(file)
+
+                addr_to = 'reference_auto@mail.ru'
+
+                files = [fr'{url}']
+
+                send_email(addr_to, addr_from, password, msg_text, files)
+            except SMTPAuthenticationError:
+                if port == 'smtp.gmail.com':
+                    self.text_rep.delete(1.0, END)
+                    self.text_rep.insert(END, 'https://myaccount.google.com/lesssecureapps')
+                    self.text_rep.config(fg='RED', font=('Times New Roman', 15, 'bold italic'))
+                    showerror('Error', ERROR[self.language]['report_gmail'])
+            except NameError as error:
+                if str(error) == 'Empty mail field':
+                    showerror('Error', ERROR[self.language]['report_title_addr_is_empty'])
+                if str(error) == 'Empty password field':
+                    showerror('Error', ERROR[self.language]['report_password_is_empty'])
+                if str(error) == 'Empty message field':
+                    showerror('Error', ERROR[self.language]['report_message_is_empty'])
+                if str(error) == 'Message too short':
+                    showerror('Error', ERROR[self.language]['report_message_too_short'])
+            except BaseException as error:
+                if str(error) == '[Errno -3] Temporary failure in name resolution':
+                    showerror('Error', ERROR[self.language]['report_connect'])
+        else:
+            showerror('Error', ERROR[self.language]['report_time'].format(time_ost=((1 - time_difference_in_hour)*60)))
+
+    def searh_report_file(self):
+        self.url_to_file = askopenfilename()
+        self.lab_input_rep_addfile.configure(text=self.url_to_file, foreground='#BC8C5F')
+
     @staticmethod
     def open_webbrowser(url: str):
         webopen(url)
@@ -376,18 +612,6 @@ class Actions:
 
 class Build(Chek_value, Actions):
     def __init__(self):
-        # def starting():
-        #     self.Main_window.deiconify()
-        #     self.root.destroy()
-
-        # self.Main_window.withdraw()
-        # self.root = Toplevel()
-        # self.root.geometry('+200+200')
-        # self.root.overrideredirect(1)
-        # Label(self.root, text='Программа запускается\n, терпение, только терпение').pack()
-        #
-        # self.Main_window.after(2000, starting)
-
         super().__init__()
         self.Main_window = ThemedTk(theme='black')
         self.Main_window.title('F_Reference_H')
@@ -398,7 +622,6 @@ class Build(Chek_value, Actions):
         self.Main_window.resizable(width=False, height=False)
         self.Main_window.iconphoto(True, PhotoImage(file='settings/ico/ico_main.png'))
 
-        # Создание картинок
         help_png_img = Image.open(f'{self.path_ico}/help.png')
         help_png = ImageTk.PhotoImage(help_png_img)
         trash = Image.open(f'{self.path_ico}/trash.png')
@@ -448,7 +671,6 @@ class Build(Chek_value, Actions):
         self.frame_main_2 = Frame(self.main_block, borderwidth=0.5, relief='solid')
         self.frame_main_2.place(relx=.5, relwidth=.5, height=35)
 
-        # Наполнение frame
         self.name_list_1 = Label(self.frame_main_1, text=self.value_ONE[1])
         self.name_list_1.place(x=2, y=3)
         self.name_list_1['font'] = (self.value_ONE[2], self.value_ONE[3], self.value_ONE[4])
@@ -509,7 +731,6 @@ class Build(Chek_value, Actions):
             height=26.2
         )
 
-        # Создание ListBox
         self.list_block_1 = Listbox(self.main_block, cursor='dot')
         self.list_block_1.bind('<Double-Button-1>', lambda not_matter: self.Add_edit('EDIT', 'ONE',
                                                                                      self.curselection_identify(
@@ -751,7 +972,8 @@ class Build(Chek_value, Actions):
         self.input_rep_email = Entry(
             self.report_block,
             font=('Times New Roman', 11, 'bold italic'),
-        ).place(relx=.08, y=10, relwidth=.15)
+        )
+        self.input_rep_email.place(relx=.08, y=10, relwidth=.15)
         Label(
             self.report_block,
             font=('Times New Roman', 13, 'bold italic'),
@@ -795,8 +1017,10 @@ class Build(Chek_value, Actions):
             text=LANGUAGE[self.language]['lab_input_rep_addfile'],
             borderwidth=0.5,
             relief='solid'
-        ).place(relx=.5, y=10, relwidth=.445)
-        self.btn_rep_upload = Button(self.report_block, image=browse).place(relx=.95, y=2)
+        )
+        self.lab_input_rep_addfile.place(relx=.5, y=10, relwidth=.445)
+        self.btn_rep_upload = Button(self.report_block, image=browse, command=self.searh_report_file).place(relx=.95,
+                                                                                                            y=2)
         self.text_rep = Text(self.report_block, font=('Times New Roman', 12))
         self.text_rep.place(relx=.01, rely=.2, relheight=.785, relwidth=.982)
         self.lab_rep_text_vk = Label(
@@ -810,6 +1034,7 @@ class Build(Chek_value, Actions):
         self.btn_rep_send = Button(
             self.report_block,
             image=send,
+            command=self.sent_email
         ).place(relx=.951, y=51)
         self.lbl_set_flowhack_1 = Label(self.settings_block, image=self.max_flowhack, cursor='heart')
         self.lbl_set_flowhack_1.bind('<Button-1>', lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
