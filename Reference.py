@@ -1,13 +1,8 @@
 from sqlite3 import connect
 from datetime import datetime as dt
 from datetime import timedelta
-from os import getcwd
-from os import listdir
-from os import mkdir
-from os import path
-from os.path import exists
-from os.path import isfile
-from os import name
+from os import getcwd, listdir, mkdir, path, name
+from os.path import exists, isfile
 from sys import exit as exit_ex
 from email import encoders
 from email.mime.audio import MIMEAudio
@@ -15,32 +10,14 @@ from email.mime.base import MIMEBase
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from smtplib import SMTPAuthenticationError
-from smtplib import SMTP_SSL
-from smtplib import SMTP
-from ssl import create_default_context
+from smtplib import SMTPAuthenticationError, SMTP_SSL
 from mimetypes import guess_type
 from ttkthemes import ThemedTk
-from tkinter.ttk import Frame
-from tkinter.ttk import Notebook
-from tkinter.ttk import Scrollbar
-from tkinter.ttk import Entry
-from tkinter.ttk import Combobox
-from tkinter.ttk import Spinbox
-from tkinter.ttk import Checkbutton
+from tkinter.ttk import Frame, Notebook, Scrollbar, Entry, Combobox, Spinbox, Checkbutton, Radiobutton, Button, Label
 from tkinter.messagebox import showerror
 from tkinter.filedialog import askopenfilename
-from tkinter import WORD
-from tkinter import BooleanVar
-from tkinter import IntVar
-from tkinter import Text
-from tkinter import Listbox
-from tkinter import END
-from tkinter import Toplevel
-from tkinter import PhotoImage
+from tkinter import WORD, BooleanVar, IntVar, Text, Listbox, END, Toplevel, PhotoImage, StringVar
 from PIL import Image, ImageTk
-from tkinter.ttk import Button
-from tkinter.ttk import Label
 from webbrowser import open as webopen
 
 start: bool = True
@@ -55,7 +32,7 @@ LANGUAGE = {
         'previously_created': 'Ранее созданные',
         'label_opt_main': 'Введите в поле ваши ID',
         'btn_optimaze': 'Оптимизировать',
-        'lab_shortcat_id': 'Сочетания клавиш работают только на английской раскладке (<Ctrl+A> - Выделить всё, '
+        'lab_shortcat_id': 'Сочетания клавиш могут не работать на русской раскладке (<Ctrl+A> - Выделить всё, '
                            '<Ctrl+C> - Скопировать, <Ctrl+X> - Вырезать, <Ctrl+V> - Вставить)',
         'lab_set_name': 'Название',
         'lab_set_font': 'Шрифт',
@@ -80,6 +57,13 @@ LANGUAGE = {
         'btn_addedit_save': 'Сохранить',
         'send_email_great': 'Все отлично! Сообщение отправлено!',
         'send_email_wait': 'Если в течение 5-15 секунд это сообщение не отправится, то произошла ошибка!',
+        'label_opt_main_id': 'Всего получилось: ',
+        'btn_optimaze_copy': 'Скопировать поле',
+        'format_optimize_1': 'https://vk.com/id+значение',
+        'format_optimize_2': '@id+значение',
+        'format_optimize_3': 'id+значение',
+        'format_optimize_4': 'значение',
+        'format_optimize': 'Форматы вывода',
     },
     'English': {
         'main_block': 'Main',
@@ -90,7 +74,7 @@ LANGUAGE = {
         'previously_created': 'Previously created',
         'label_opt_main': 'Enter your ID in the field',
         'btn_optimaze': 'Optimize',
-        'lab_shortcat_id': 'Keyboard shortcuts only work on the English keyboard layout (<Ctrl+A> - Select All, '
+        'lab_shortcat_id': 'Keyboard shortcuts may not work on Russian layout (<Ctrl+A> - Select All, '
                            '<Ctrl+C> - Copy, <Ctrl+X> - Cut, <Ctrl+V> - Insert)',
         'lab_set_name': 'Title',
         'lab_set_font': 'Font',
@@ -115,6 +99,14 @@ LANGUAGE = {
         'btn_addedit_save': 'Save',
         'send_email_great': 'Everything is great! The message was sent!',
         'send_email_wait': 'If this message is not sent within 5-15 seconds, an error has occurred!',
+        'label_opt_main_id': 'It turned out in total: ',
+        'btn_optimaze_copy': 'Copy all',
+        'btn_optimaze_copy': 'Copy field',
+        'format_optimize_1': 'https://vk.com/id+value',
+        'format_optimize_2': '@id+value',
+        'format_optimize_3': 'id+value',
+        'format_optimize_4': 'value',
+        'format_optimize': 'Output formats',
     }
 }
 ERROR = {
@@ -227,6 +219,7 @@ State it in detail, at least 30 characters! We still need to understand and fix 
 LANGUAGE_LIST = ['Russian', 'English']
 FONT = ['Times New Roman', 'Calibri', 'Arial', 'Helvetica', 'Courier']
 VALUE_MAIL = ['list.ru', 'bk.ru', 'inbox.ru', 'mail.ru', 'gmail.com']
+
 
 class Chek_value:
     def __init__(self):
@@ -388,9 +381,8 @@ class Actions:
             self.list_block_2.insert(END, f' {counter}: {record[1]}')
 
     def copy_optimaze(self):
-        pass
-        # txt.clipboard_clear()  # Очистить буфер обмена
-        # txt.clipboard_append(txt.get(1.0, END))
+        self.id_text.clipboard_clear()
+        self.id_text.clipboard_append(self.id_text.get(1.0, END))
 
     def eyes(self, impossible=None):
         if self.eyes_value == bool(True):
@@ -599,11 +591,49 @@ class Actions:
                 if str(error) == '[Errno -3] Temporary failure in name resolution':
                     showerror('Error', ERROR[self.language]['report_connect'])
         else:
-            showerror('Error', ERROR[self.language]['report_time'].format(time_ost=((1 - time_difference_in_hour)*60)))
+            showerror('Error',
+                      ERROR[self.language]['report_time'].format(time_ost=((1 - time_difference_in_hour) * 60)))
 
     def searh_report_file(self):
         self.url_to_file = askopenfilename()
         self.lab_input_rep_addfile.configure(text=self.url_to_file, foreground='#BC8C5F')
+
+    def optimize_id(self):
+        def optimize_result(record_list, formats):
+            finish = []
+            for result_record in record_list:
+                if result_record[:2] == 'id':
+                    result_value = int(result_record[2:])
+                    if result_value > 100:
+                        finish.append(formats + result_record[2:])
+                elif result_record[:3] == '@id':
+                    result_value = int(result_record[3:])
+                    if result_value > 100:
+                        finish.append(formats + result_record[3:])
+                elif result_record[:17] == 'https://vk.com/id':
+                    result_value = int(result_record[17:])
+                    if result_value > 100:
+                        finish.append(formats + result_record[17:])
+                else:
+                    result_value = int(result_record)
+                    if result_value > 100:
+                        finish.append(formats + result_record)
+
+            _finish = '\n'.join(set(finish))
+            return _finish, len(finish)
+
+        record = self.id_text.get(1.0, END).split()
+        format = self.format_optimize_var.get()
+        result_finish = optimize_result(record, format)
+        if result_finish != '':
+            self.id_text.delete(1.0, END)
+            self.id_text.insert(1.0, result_finish[0])
+            self.label_opt_main.configure(text=LANGUAGE[self.language]['label_opt_main_id'] + str(result_finish[1]),
+                                          foreground='#FF757F')
+            self.label_opt_main.after(3000, lambda: self.label_opt_main.configure(
+                text=LANGUAGE[self.language]['label_opt_main'],
+                foreground='white')
+                                       )
 
     @staticmethod
     def open_webbrowser(url: str):
@@ -748,7 +778,7 @@ class Build(Chek_value, Actions):
         self.scroll_list_block_2 = Scrollbar(self.list_block_2, orient='vertical')
         self.scroll_list_block_2.pack(side='right', fill='y')
 
-# !!!!!!BUILD_OTHER_BLOCK!!!!!!
+        # !!!!!!BUILD_OTHER_BLOCK!!!!!!
         if self.start_other_block == 1:
             self.notebook_other = Notebook(self.other_block)
             self.optimization_block = Frame(self.notebook_other)
@@ -765,26 +795,62 @@ class Build(Chek_value, Actions):
             self.label_opt_main['font'] = ('Times New Roman', 15, 'italic bold')
             self.btn_optimaze = Button(
                 self.optimization_block,
-                text=LANGUAGE[self.language]['btn_optimaze']
-            ).place(y=5, relx=.888)
+                text=LANGUAGE[self.language]['btn_optimaze'],
+                command=self.optimize_id
+            ).place(y=15, relx=.94, anchor='c')
+            self.btn_optimaze_copy = Button(
+                self.optimization_block,
+                text=LANGUAGE[self.language]['btn_optimaze_copy'],
+                command=self.copy_optimaze
+            ).place(y=40, x=1)
             Label(
                 self.optimization_block,
                 text=LANGUAGE[self.language]['lab_shortcat_id'],
                 font=('Times New Roman', 10),
                 foreground='red'
-            ).place(relx=.5, rely=.22, anchor='c')
+            ).place(relx=.5, rely=.305, anchor='c')
+            frame_optimize_1 = Frame(self.optimization_block, borderwidth=0.5, relief='solid')
+            frame_optimize_1.place(y=75, relx=.5, anchor='c', relwidth=.5, relheight=.22)
+            Label(frame_optimize_1, font=('Times New Roman', 12, 'bold italic'), foreground='#FF9B75',
+                  text=LANGUAGE[self.language]['format_optimize']).place(y=15, relx=.5, anchor="c")
+            self.format_optimize_var = StringVar()
+            self.format_optimize_var.set('')
+            Radiobutton(
+                frame_optimize_1,
+                text=LANGUAGE[self.language]['format_optimize_1'],
+                variable=self.format_optimize_var,
+                value='https://vk.com/id'
+            ).place(y=75, relx=.5, anchor='c')
+            Radiobutton(
+                frame_optimize_1,
+                text=LANGUAGE[self.language]['format_optimize_4'],
+                variable=self.format_optimize_var,
+                value=''
+            ).place(y=45, relx=.5, anchor='c')
+            Radiobutton(
+                frame_optimize_1,
+                text=LANGUAGE[self.language]['format_optimize_3'],
+                variable=self.format_optimize_var,
+                value='id'
+            ).place(y=45, relx=.2, anchor='c')
+            Radiobutton(
+                frame_optimize_1,
+                text=LANGUAGE[self.language]['format_optimize_2'],
+                variable=self.format_optimize_var,
+                value='@id'
+            ).place(y=45, relx=.8, anchor='c')
             self.id_text = Text(self.optimization_block)
-            self.id_text.place(x=5, rely=.25, relwidth=.99, relheight=.738)
+            self.id_text.place(x=5, rely=.335, relwidth=.99, relheight=.65)
             self.optimaze_flowhack_1 = Label(self.optimization_block, image=self.average_flowhack, cursor='heart')
-            self.optimaze_flowhack_1.place(x=5, rely=.175)
             self.optimaze_flowhack_1.bind('<Button-1>',
                                           lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
+            self.optimaze_flowhack_1.place(x=5, rely=.265)
             self.optimaze_flowhack_2 = Label(self.optimization_block, image=self.average_flowhack, cursor='heart')
-            self.optimaze_flowhack_2.place(relx=.89, rely=.179)
             self.optimaze_flowhack_2.bind('<Button-1>',
                                           lambda no_matter: self.open_webbrowser('http://vk.com/id311966436'))
+            self.optimaze_flowhack_2.place(relx=.89, rely=.265)
 
-# !!!!!! BUILD_SETTINGS_BLOCK !!!!!!
+        # !!!!!! BUILD_SETTINGS_BLOCK !!!!!!
 
         self.frame_optimization_1 = Frame(self.settings_block, borderwidth=2, relief='ridge')
         self.frame_optimization_1.place(relwidth=.5, relheight=0.6)
@@ -835,7 +901,7 @@ class Build(Chek_value, Actions):
             self.chk_bold_1.set(bool(True))
         else:
             self.chk_bold_1.set(bool(False))
-        self.input_set_bold_1 = Checkbutton(
+        Checkbutton(
             self.frame_optimization_1,
             text=LANGUAGE[self.language]['input_set_bold'],
             var=self.chk_bold_1
@@ -845,7 +911,7 @@ class Build(Chek_value, Actions):
             self.chk_italic_1.set(bool(True))
         else:
             self.chk_italic_1.set(bool(False))
-        self.input_set_italic_1 = Checkbutton(
+        Checkbutton(
             self.frame_optimization_1,
             text=LANGUAGE[self.language]['input_set_italic'],
             var=self.chk_italic_1
@@ -855,7 +921,7 @@ class Build(Chek_value, Actions):
             self.chk_underline_1.set(bool(True))
         else:
             self.chk_underline_1.set(bool(False))
-        self.input_set_underline_1 = Checkbutton(
+        Checkbutton(
             self.frame_optimization_1,
             text=LANGUAGE[self.language]['input_set_underline'],
             var=self.chk_underline_1
@@ -912,7 +978,7 @@ class Build(Chek_value, Actions):
             self.chk_bold_2.set(bool(True))
         else:
             self.chk_bold_2.set(bool(False))
-        self.input_set_bold_2 = Checkbutton(
+        Checkbutton(
             self.frame_optimization_2,
             text=LANGUAGE[self.language]['input_set_bold'],
             var=self.chk_bold_2
@@ -922,7 +988,7 @@ class Build(Chek_value, Actions):
             self.chk_italic_2.set(bool(True))
         else:
             self.chk_italic_2.set(bool(False))
-        self.input_set_italic_2 = Checkbutton(
+        Checkbutton(
             self.frame_optimization_2,
             text=LANGUAGE[self.language]['input_set_italic'],
             var=self.chk_italic_2
@@ -932,7 +998,7 @@ class Build(Chek_value, Actions):
             self.chk_underline_2.set(bool(True))
         else:
             self.chk_underline_2.set(bool(False))
-        self.input_set_underline_2 = Checkbutton(
+        Checkbutton(
             self.frame_optimization_2,
             text=LANGUAGE[self.language]['input_set_underline'],
             var=self.chk_underline_2
@@ -942,7 +1008,7 @@ class Build(Chek_value, Actions):
         self.frame_optimization_3.place(relx=.025, rely=.6, relwidth=.95, relheight=.2)
         self.chk_other_block = BooleanVar()
         self.chk_other_block.set(bool(self.start_other_block))
-        self.set_onoff_other_block = Checkbutton(
+        Checkbutton(
             self.frame_optimization_3,
             text=LANGUAGE[self.language]['set_onoff_other_block'],
             var=self.chk_other_block
@@ -963,7 +1029,7 @@ class Build(Chek_value, Actions):
         self.set_ok = Button(self.settings_block, image=ok, command=self.completion_settings).place(relx=.5, rely=.95,
                                                                                                     anchor='c')
 
-# !!!!!! BUILD_REPORT_BLOCK !!!!!!
+        # !!!!!! BUILD_REPORT_BLOCK !!!!!!
         Label(
             self.report_block,
             text=LANGUAGE[self.language]['lab_rep_email'],
