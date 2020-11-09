@@ -13,7 +13,8 @@ from email.mime.text import MIMEText
 from smtplib import SMTPAuthenticationError, SMTP_SSL
 from mimetypes import guess_type
 from ttkthemes import ThemedTk
-from tkinter.ttk import Frame, Notebook, Scrollbar, Entry, Combobox, Spinbox, Checkbutton, Radiobutton, Button, Label
+from tkinter.ttk import Frame, Notebook, Scrollbar, Entry, Combobox, Spinbox, Checkbutton, Radiobutton, Button, Label, \
+    Treeview
 from tkinter.messagebox import showerror
 from tkinter.filedialog import askopenfilename
 from tkinter import WORD, BooleanVar, IntVar, Text, Listbox, END, Toplevel, PhotoImage, StringVar
@@ -27,7 +28,7 @@ LANGUAGE = {
         'main_block': 'Главная',
         'other_block': 'Другое',
         'settings_block': 'Настройки',
-        'report_block': 'Сообщить об ошибке или предложении',
+        'report_block': 'Обратная связь',
         'optimization_block': 'Оптимизация ID',
         'previously_created': 'Ранее созданные',
         'label_opt_main': 'Введите в поле ваши ID',
@@ -64,12 +65,16 @@ LANGUAGE = {
         'format_optimize_3': 'id+значение',
         'format_optimize_4': 'значение',
         'format_optimize': 'Форматы вывода',
+        'optimizee_name': 'Название',
+        'optimizee_date': 'Дата создания',
+        'del_old_optimize': 'Удалить старые записи',
+        'del_all_optimize': 'Удалить все записи',
     },
     'English': {
         'main_block': 'Main',
         'other_block': 'Other',
         'settings_block': 'Settings',
-        'report_block': 'Report a bug',
+        'report_block': 'Feedback',
         'optimization_block': 'ID optimization',
         'previously_created': 'Previously created',
         'label_opt_main': 'Enter your ID in the field',
@@ -107,15 +112,17 @@ LANGUAGE = {
         'format_optimize_3': 'id+value',
         'format_optimize_4': 'value',
         'format_optimize': 'Output formats',
+        'optimizee_name': 'Name',
+        'optimizee_date': 'Date of creation',
+        'del_old_optimize': 'Delete old entries',
+        'del_all_optimize': 'Delete all entries',
     }
 }
 ERROR = {
     'Russian': {
         'delete': '''Произошла непредвиденная ошибка!
 
-Возможно вы не выбрали удаляемую запись!
-
-Если решить ошибку не удастся самостоятельно, то напишите в соответствующем блоке верхнего меню приложения. Хорошего дня!''',
+Вы не выбрали запись!''',
         'addedit_name': '''Похоже, что длина введеного вами имени документа длиннее 40 сиволов!
 
 Исправить эту ошибку! <Краткость - сестра таланта>''',
@@ -165,9 +172,7 @@ ERROR = {
     'Englsh': {
         'delete': '''An unexpected error occurred!
 
-You may not have selected the record to delete!
-
-If you can't solve the error yourself, write in the corresponding block in the top menu of the app. Have a nice day!''',
+You have not selected an entry!''',
         'addedit_name': '''It seems that the length you entered for the document name is longer than 40 character's!
 
 Fix this error! < Brevity is the sister of talent>''',
@@ -314,7 +319,7 @@ class Chek_value:
         self.connect_sql.commit()
 
     def sql_list_records(self):
-        date = dt.now()
+        date = dt.now().strftime(DATE_FORMAT)
         DEFAULT_RECORDS_LIST = [
             ('ONE', 'Проверочная_запись_1', 'Проверочная_запись_1', 'Times New Roman', 12, date),
             ('TWO', 'Проверочная_запись_2', 'Проврочная_запись_2', 'Times New Roman', 12, date)
@@ -332,8 +337,10 @@ class Chek_value:
 
     def sql_optimaze(self):
         self.cursor_sql.execute("""CREATE TABLE IF NOT EXISTS optimaze(
-                        name TEXT,
-                        turn_out INT)""")
+                        name INTEGER PRIMARY KEY,
+                        turn_out INT,
+                        date TEXT,
+                        text TEXT)""")
         self.connect_sql.commit()
 
     def sql_settings(self):
@@ -405,8 +412,9 @@ class Actions:
     def curselection_identify(self, where):
         try:
             return str(where.get(where.curselection()).split()[1])
-        except:
-            showerror('Error', ERROR[self.language]['delete'])
+        except BaseException as error:
+            if str(error) == 'bad listbox index "": must be active, anchor, end, @x,y, or a number':
+                showerror('Error', ERROR[self.language]['delete'])
 
     def completion_settings(self):
         def completion_bold_italic_underline(name, value, value_else):
@@ -598,6 +606,21 @@ class Actions:
         self.url_to_file = askopenfilename()
         self.lab_input_rep_addfile.configure(text=self.url_to_file, foreground='#BC8C5F')
 
+    def move(self, name_list):
+        if name_list == 'ONE':
+            name = self.curselection_identify(self.list_block_1)
+            name_list_move = 'TWO'
+        else:
+            name = self.curselection_identify(self.list_block_2)
+            name_list_move = 'ONE'
+
+        self.cursor_sql.execute(f'''UPDATE list_records
+                                SET name_list = "{name_list_move}"
+                                WHERE (name_list = "{name_list}") and (name = "{name}")''')
+        self.connect_sql.commit()
+
+        self.completion_list()
+
     def optimize_id(self):
         def optimize_result(record_list, formats):
             finish = []
@@ -626,14 +649,30 @@ class Actions:
         format = self.format_optimize_var.get()
         result_finish = optimize_result(record, format)
         if result_finish != '':
+            date_now = dt.now().strftime(DATE_FORMAT)
             self.id_text.delete(1.0, END)
             self.id_text.insert(1.0, result_finish[0])
+            self.cursor_sql.execute(f'''INSERT INTO optimaze (turn_out, date, text) VALUES 
+                                    ("{str(result_finish[1])}", "{date_now}", "{result_finish[0]}")''')
             self.label_opt_main.configure(text=LANGUAGE[self.language]['label_opt_main_id'] + str(result_finish[1]),
                                           foreground='#FF757F')
             self.label_opt_main.after(3000, lambda: self.label_opt_main.configure(
                 text=LANGUAGE[self.language]['label_opt_main'],
                 foreground='white')
-                                       )
+                                      )
+
+    def optimization_open(self, name_value):
+        self.cursor_sql.execute(f'SELECT text, turn_out FROM optimaze WHERE name="{name_value}"')
+        optimization_record = self.cursor_sql.fetchone()
+        self.id_text.delete(1.0, END)
+        self.id_text.insert(1.0, optimization_record[0])
+        self.label_opt_main.configure(text=LANGUAGE[self.language]['label_opt_main_id'] + str(optimization_record[1]),
+                                      foreground='#FF757F')
+        self.label_opt_main.after(5000, lambda: self.label_opt_main.configure(
+            text=LANGUAGE[self.language]['label_opt_main'],
+            foreground='white')
+                                  )
+        self.optimizee_window.destroy()
 
     @staticmethod
     def open_webbrowser(url: str):
@@ -655,13 +694,15 @@ class Build(Chek_value, Actions):
         help_png_img = Image.open(f'{self.path_ico}/help.png')
         help_png = ImageTk.PhotoImage(help_png_img)
         trash = Image.open(f'{self.path_ico}/trash.png')
-        trash = ImageTk.PhotoImage(trash)
+        self.trash = ImageTk.PhotoImage(trash)
         add_file = Image.open(f'{self.path_ico}/add_file.png')
         add_file = ImageTk.PhotoImage(add_file)
         update = Image.open(f'{self.path_ico}/update.png')
         update = ImageTk.PhotoImage(update)
         ok = Image.open(f'{self.path_ico}/ok.png')
         ok = ImageTk.PhotoImage(ok)
+        move = Image.open(f'{self.path_ico}/move.png')
+        move = ImageTk.PhotoImage(move)
         eye_close = Image.open(f'{self.path_ico}/eyeclose.png')
         self.eye_close = ImageTk.PhotoImage(eye_close)
         eye_open = Image.open(f'{self.path_ico}/eyeopen.png')
@@ -706,7 +747,7 @@ class Build(Chek_value, Actions):
         self.name_list_1['font'] = (self.value_ONE[2], self.value_ONE[3], self.value_ONE[4])
         self.del_1 = Button(
             self.frame_main_1,
-            image=trash,
+            image=self.trash,
             cursor='pirate',
             command=lambda: self.delete_record('ONE', self.curselection_identify(self.list_block_1))).place(
             rely=.11,
@@ -730,12 +771,18 @@ class Build(Chek_value, Actions):
             width=32,
             height=26.2
         )
+        self.move_1 = Button(self.frame_main_1, image=move, cursor='right_side',
+                             command=lambda: self.move('ONE')).place(rely=.11,
+                                                                     relx=.768,
+                                                                     width=32,
+                                                                     height=26.2
+                                                                     )
         self.name_list_2 = Label(self.frame_main_2, text=self.value_TWO[1])
         self.name_list_2.place(x=2, y=3)
         self.name_list_2['font'] = (self.value_TWO[2], self.value_TWO[3], self.value_TWO[4])
         self.del_2 = Button(
             self.frame_main_2,
-            image=trash,
+            image=self.trash,
             cursor='pirate',
             command=lambda: self.delete_record('TWO', self.curselection_identify(self.list_block_2))
         ).place(
@@ -760,19 +807,27 @@ class Build(Chek_value, Actions):
             width=32,
             height=26.2
         )
+        self.move_2 = Button(self.frame_main_2, image=move, cursor='left_side',
+                             command=lambda: self.move('TWO')).place(rely=.11,
+                                                                     relx=.768,
+                                                                     width=32,
+                                                                     height=26.2
+                                                                     )
 
-        self.list_block_1 = Listbox(self.main_block, cursor='dot')
+        self.list_block_1 = Listbox(self.main_block, cursor='dot', selectbackground='#f3be81')
         self.list_block_1.bind('<Double-Button-1>', lambda not_matter: self.Add_edit('EDIT', 'ONE',
                                                                                      self.curselection_identify(
                                                                                          self.list_block_1)))
+        self.list_block_1.bind('<Button-2>', lambda no_matter: self.move('ONE'))
         self.list_block_1['font'] = (self.value_ONE[2], self.value_ONE[3], self.value_ONE[4])
         self.list_block_1.place(y=40, relwidth=.5, relheight=0.91)
         self.scroll_list_block_1 = Scrollbar(self.list_block_1, orient='vertical')
         self.scroll_list_block_1.pack(side='right', fill='y')
-        self.list_block_2 = Listbox(self.main_block, cursor='dot')
+        self.list_block_2 = Listbox(self.main_block, cursor='dot', selectbackground='#f3be81')
         self.list_block_2.bind('<Double-Button-1>', lambda not_matter: self.Add_edit('EDIT', 'TWO',
                                                                                      self.curselection_identify(
                                                                                          self.list_block_2)))
+        self.list_block_2.bind('<Button-2>', lambda no_matter: self.move('TWO'))
         self.list_block_2['font'] = (self.value_TWO[2], self.value_TWO[3], self.value_TWO[4])
         self.list_block_2.place(y=40, relx=.5005, relwidth=.5, relheight=0.91)
         self.scroll_list_block_2 = Scrollbar(self.list_block_2, orient='vertical')
@@ -788,7 +843,8 @@ class Build(Chek_value, Actions):
             # Заполнение optimaze
             self.previously_created = Button(
                 self.optimization_block,
-                text=LANGUAGE[self.language]['previously_created']
+                text=LANGUAGE[self.language]['previously_created'],
+                command=self.Optimize_records
             ).place(y=5, x=1)
             self.label_opt_main = Label(self.optimization_block, text=LANGUAGE[self.language]['label_opt_main'])
             self.label_opt_main.place(y=10, relx=.5, anchor="c")
@@ -1127,6 +1183,69 @@ class Build(Chek_value, Actions):
         self.Main_window.protocol("WM_DELETE_WINDOW", exit_ex)
         self.Main_window.mainloop()
 
+    def Optimize_records(self):
+        def completion_list():
+            listbox_optimization.delete(0, END)
+            self.cursor_sql.execute('''SELECT * FROM optimaze''')
+            all_records = self.cursor_sql.fetchall()
+            for record in all_records:
+                listbox_optimization.insert(0, f'{record[0]} | ID:{record[1]} | Date:{record[2].split()[0]}')
+
+        def curselection():
+            try:
+                return str(listbox_optimization.get(listbox_optimization.curselection()).split()[0])
+            except BaseException as error:
+                if str(error) == 'bad listbox index "": must be active, anchor, end, @x,y, or a number':
+                    showerror('Error', ERROR[self.language]['delete'])
+
+        def delete_record():
+            name_rec = curselection()
+            self.cursor_sql.execute(f'DELETE FROM optimaze WHERE name = "{name_rec}"')
+            self.connect_sql.commit()
+            completion_list()
+
+        def delete_all_records():
+            self.cursor_sql.execute('DROP TABLE IF EXISTS optimaze')
+            self.connect_sql.commit()
+            self.sql_optimaze()
+            completion_list()
+
+        def delete_old_records():
+            old_date = dt.now() - timedelta(days=15)
+            self.cursor_sql.execute('''SELECT * FROM optimaze''')
+            all_records = self.cursor_sql.fetchall()
+            for record in all_records:
+                if (dt.strptime(record[2], DATE_FORMAT) - old_date).days < 0:
+                    self.cursor_sql.execute(f'DELETE FROM optimaze WHERE name = "{record[0]}"')
+                    self.connect_sql.commit()
+            completion_list()
+
+        self.optimizee_window = Toplevel(background='#424242')
+        self.optimizee_window.title('list records')
+        self.optimizee_window.geometry('500x700')
+        x = (self.optimizee_window.winfo_screenwidth() - self.optimizee_window.winfo_reqwidth()) / 2
+        y = (self.optimizee_window.winfo_screenheight() - self.optimizee_window.winfo_reqheight()) / 2
+        self.optimizee_window.wm_geometry("+%d+%d" % (x - 140, y - 300))
+        self.optimizee_window.resizable(width=False, height=False)
+        self.optimizee_window.iconphoto(True, PhotoImage(file='settings/ico/ico_main.png'))
+
+        frame_optimize_win_1 = Frame(self.optimizee_window, borderwidth=0.5, relief='solid')
+        frame_optimize_win_1.place(relwidth=1, height=35)
+        del_optimize = Button(frame_optimize_win_1, image=self.trash, command=delete_record).pack(side='left', padx=2)
+        del_all_optimize = Button(frame_optimize_win_1, text=LANGUAGE[self.language]['del_all_optimize'],
+                                  command=delete_all_records).pack(side='left', padx=2)
+        del_old_optimize = Button(frame_optimize_win_1, text=LANGUAGE[self.language]['del_old_optimize'],
+                                  command=delete_old_records).pack(side='left', padx=2)
+
+        listbox_optimization = Listbox(self.optimizee_window, cursor='dot', font=('Times New Roman', 11, 'italic'),
+                               selectbackground='#f3be81'
+                               )
+        listbox_optimization.bind('<Double-Button-1>', lambda no_matter: self.optimization_open(curselection()))
+        listbox_optimization.place(y=36, relwidth=1, relheight=.945)
+        completion_list()
+
+        self.optimizee_window.mainloop()
+
     def Add_edit(self, doing, name_list, name_record=None):
         def apply():
             return self.text_addedit.configure(font=(self.input_addedit_font.get(), self.input_size_addedit.get()))
@@ -1164,7 +1283,7 @@ class Build(Chek_value, Actions):
                 showerror('Error', ERROR[self.language]['addedit_name'])
 
         if doing == 'ADD':
-            self.date_add = dt.now().strftime('%d %B %Y %H:%M:%S')
+            self.date_add = dt.now().strftime(DATE_FORMAT)
             if name_list == 'ONE':
                 text_main = f'{LANGUAGE[self.language]["lbl_add_main"]} <{self.value_ONE[1]}>'
             else:
