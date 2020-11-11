@@ -1,28 +1,32 @@
 from datetime import datetime as dt
 from datetime import timedelta
-from random import choice
 from email import encoders
 from email.mime.audio import MIMEAudio
 from email.mime.base import MIMEBase
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from hashlib import (blake2b, blake2s, md5, sha1, sha3_384, sha3_512, sha224,
+                     sha256, sha384, sha512, shake_128, shake_256)
 from mimetypes import guess_type
 from os import getcwd, listdir, mkdir, path
 from os.path import exists, isfile
+from random import choice
 from smtplib import SMTP_SSL, SMTPAuthenticationError
 from sqlite3 import connect
 from sys import exit as exit_ex
-from tkinter import (END, WORD, BooleanVar, IntVar, Listbox, PhotoImage,
-                     StringVar, Text, Toplevel, DISABLED, NORMAL)
+from tkinter import (DISABLED, END, NORMAL, WORD, BooleanVar, IntVar, Listbox,
+                     PhotoImage, StringVar, Text, Toplevel)
 from tkinter.filedialog import askopenfilename
-from tkinter.messagebox import showerror
+from tkinter.messagebox import showerror, askyesnocancel
 from tkinter.ttk import (Button, Checkbutton, Combobox, Entry, Frame, Label,
                          Notebook, Radiobutton, Scrollbar, Spinbox)
 from webbrowser import open as webopen
 
 from PIL import Image, ImageTk
 from ttkthemes import ThemedTk
+
+import time
 
 start: bool = True
 VERSION = '1'
@@ -95,7 +99,10 @@ LANGUAGE = {
         'pas_generator_sha3_512': 'SHA3_512',
         'pas_generator_shake_128': 'SHAKE_128',
         'pas_generator_shake_256': 'SHAKE_256',
-        'pas_generator_copy': 'Скопировать пароль'
+        'pas_generator_copy': 'Скопировать пароль',
+        'pas_generator_create': 'Сгенерировать',
+        'pas_generator_reset': 'Сбросить',
+        'add_edit_exit_or_no': 'Мы заметили, что вы не сохранили данные! \n\nЖелаете сохранить данные?'
     },
     'English': {
     }
@@ -115,7 +122,13 @@ ERROR = {
         'report_message_is_empty': 'Вы не написали сообщение! Оно для вас шутка?\n\nЗаполните его, оно обязательно)',
         'report_time': 'В целях безопасности мы запретили отправлять сообщения чаше, чем 1 раз в час.\n\nМожете написать через {time_ost:0.0f} мин.',
         'report_message_too_short': 'Вы написали слишком короткое сообщение, врятли вы смогли хорошо в нём изложить свою мысль!\n\nИзложите её развёрнуто, не менее 30 символов! Нам ещё надо это понять и исправить!',
-        'unacceptable_symbols': 'Вы использовали недопустимые символы! (:;!*#¤&)'
+        'unacceptable_symbols': 'Вы использовали недопустимые символы! (:;!*#¤&)',
+        'not_name': 'Извините, но название "name" нельзя использовать!',
+        'not_text': 'Извините, но содержимое текста нельяз называть просто "text!',
+        'text_null': 'Поле текста пустое! Так нельзя!',
+        'name_null': 'Поле названия пустое! Так нельзя!',
+        'unacceptable_symbols_ONE': 'Вы использовали недопустимые символы в названии первого блока! (:;!*#¤&)',
+        'unacceptable_symbols_TWO': 'Вы использовали недопустимые символы в названии второго блока! (:;!*#¤&)',
     },
     'Englsh': {
 
@@ -222,12 +235,12 @@ class Chek_value:
         ]
         self.cursor_sql.execute(
             '''CREATE TABLE IF NOT EXISTS list_block(
-            main_name TEXT,
-            name TEXT,
-            font TEXT,
-            size INT,
-            bolds TEXT,
-            italics TEXT,
+            main_name TEXT NOT NULL,
+            name TEXT NOT NULL,
+            font TEXT NOT NULL,
+            size INT NOT NULL,
+            bolds TEXT NOT NULL,
+            italics TEXT NOT NULL,
             underlines TEXT)'''
         )
         self.connect_sql.commit()
@@ -259,12 +272,12 @@ class Chek_value:
         ]
         self.cursor_sql.execute(
             '''CREATE TABLE IF NOT EXISTS list_records(
-            name_list TEXT,
-            name TEXT,
-            text TEXT,
-            font TEXT,
-            size INT,
-            date TEXT)'''
+            name_list TEXT NOT NULL,
+            name TEXT NOT NULL,
+            text TEXT NOT NULL,
+            font TEXT NOT NULL,
+            size INT NOT NULL,
+            date TEXT NOT NULL)'''
         )
         self.connect_sql.commit()
         self.cursor_sql.executemany(
@@ -277,9 +290,9 @@ class Chek_value:
         self.cursor_sql.execute(
             '''CREATE TABLE IF NOT EXISTS optimaze(
             name INTEGER PRIMARY KEY,
-            turn_out INT,
-            date TEXT,
-            text TEXT)'''
+            turn_out INT NOT NULL,
+            date TEXT NOT NULL,
+            text TEXT NOT NULL)'''
         )
         self.connect_sql.commit()
 
@@ -288,10 +301,10 @@ class Chek_value:
 
         self.cursor_sql.execute(
             '''CREATE TABLE IF NOT EXISTS settings(
-            other_block BOOLEAN,
-            launch BOOLEAN,
-            language TEXT,
-            send_email TEXT)'''
+            other_block BOOLEAN NOT NULL,
+            launch BOOLEAN NOT NULL,
+            language TEXT NOT NULL,
+            send_email TEXT NOT NULL)'''
         )
         self.connect_sql.commit()
         self.cursor_sql.execute(
@@ -339,6 +352,11 @@ class Actions:
         self.btn_help_copy.clipboard_clear()
         self.btn_help_copy.clipboard_append('https://flowhack.github.io/')
 
+    def copy_generate_password(self):
+        password = self.pas_generator_result.get()
+        self.pas_generator_result.clipboard_clear()
+        self.pas_generator_result.clipboard_append(password)
+
     def eyes(self, impossible=None):
         if self.eyes_value == bool(True):
             self.eyes_value = bool(False)
@@ -375,7 +393,7 @@ class Actions:
             if name == bool(False):
                 return value_else
 
-        title_ONE, title_TWO = self.input_name_1.get(), self.input_name_2.get()
+        title_ONE, title_TWO = self.input_name_1.get().lstrip().rstrip(), self.input_name_2.get().lstrip().rstrip()
         font_ONE, font_TWO = self.input_font_1.get(), self.input_font_2.get()
         size_ONE, size_TWO = self.spinval_1.get(), self.spinval_2.get()
         bold_ONE = completion_bold_italic_underline(
@@ -415,10 +433,14 @@ class Actions:
                 raise NameError('The first line is longer than 40')
             if len(title_TWO) > 40:
                 raise NameError('The second line is longer than 40')
-            if title_ONE == '':
+            if (title_ONE == '') or (title_ONE == ' '):
                 raise NameError('Empty string in the first')
-            if title_TWO == '':
+            if (title_TWO == '') or (title_TWO == ' '):
                 raise NameError('Empty string in the second')
+            if not set(":;!*#¤&").isdisjoint(title_ONE):
+                raise NameError('unacceptable_symbols_ONE')
+            if not set(":;!*#¤&").isdisjoint(title_TWO):
+                raise NameError('unacceptable_symbols_TWO')
 
             self.cursor_sql.execute(
                 f'''UPDATE list_block
@@ -457,9 +479,12 @@ class Actions:
             if str(error) == 'Empty string in the first':
                 showerror('Error',
                           ERROR[self.language]['settings_title_is_empty_ONE'])
-            if str(error) == 'Empty string in the second':
+            if str(error) == 'unacceptable_symbols_ONE':
                 showerror('Error',
-                          ERROR[self.language]['settings_title_is_empty_TWO'])
+                          ERROR[self.language]['unacceptable_symbols_ONE'])
+            if str(error) == 'unacceptable_symbols_TWO':
+                showerror('Error',
+                          ERROR[self.language]['unacceptable_symbols_TWO'])
 
     def delete_all(self):
         self.input_rep_expancion.delete(0, END)
@@ -724,45 +749,117 @@ class Actions:
             )
             self.optimizee_window.destroy()
 
+    def password_generator_reset(self):
+        self.pas_generator_result.configure(state=NORMAL)
+        self.pas_generator_result.delete(0, END)
+        self.pas_generator_result.configure(state=DISABLED)
+        self.pas_generator_encrypt.set('')
+        self.pas_generator_count.set(8)
+        self.chk_pas_symbol.set(bool(False))
+        self.chk_pas_number.set(bool(True))
+        self.chk_pas_upper.set(bool(True))
+
     def password_generate(self):
+        password = ''
+        self.pas_generator_result.configure(state=NORMAL)
+        self.pas_generator_result.delete(0, END)
+        self.pas_generator_result.configure(state=DISABLED)
         main_list_symbols: list = ['a', 'b', 'c', 'd', 'i', 'f', 'g', 'h',
                                    'i', 'g', 'k', 'l', 'm', 'n', 'o', 'p',
                                    'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
                                    'y', 'z']
-        additional_symbols: list = ['!', '.', ',', '@', '#', '$', '%', '?',
-                                    '*']
-        number_symbols: list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        additional_symbols: list = ['!', '.', ',', '@', '#', '$', '%', '?']
+        number_symbols: list = ['0', '1', '2', '3', '4', '5', '6', '7', '8',
+                                '9']
         upper_symbols: list = ['A', 'B', 'C', 'D', 'I', 'F', 'G', 'H', 'I',
                                'G', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
                                'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 
-        if self.chk_pas_symbol:
+        if self.chk_pas_symbol.get():
             main_list_symbols += additional_symbols
-        if self.chk_pas_number:
+        if self.chk_pas_number.get():
             main_list_symbols += number_symbols
-        if self.chk_pas_upper:
+        if self.chk_pas_upper.get():
             main_list_symbols += upper_symbols
 
+        number_in_password = self.pas_generator_count.get()
+
+        for char in range(number_in_password):
+            password += choice(main_list_symbols)
+
+        if self.pas_generator_encrypt.get() == 'sha1':
+            password = sha1(password.encode('utf-8')).hexdigest()
+        if self.pas_generator_encrypt.get() == 'md5':
+            password = md5(password.encode('utf-8')).hexdigest()
+        if self.pas_generator_encrypt.get() == 'sha224':
+            password = sha224(password.encode('utf-8')).hexdigest()
+        if self.pas_generator_encrypt.get() == 'sha256':
+            password = sha256(password.encode('utf-8')).hexdigest()
+        if self.pas_generator_encrypt.get() == 'sha384':
+            password = sha384(password.encode('utf-8')).hexdigest()
+        if self.pas_generator_encrypt.get() == 'sha512':
+            password = sha512(password.encode('utf-8')).hexdigest()
+        if self.pas_generator_encrypt.get() == 'blake2b':
+            password = blake2b(password.encode('utf-8')).hexdigest()
+        if self.pas_generator_encrypt.get() == 'blake2s':
+            password = blake2s(password.encode('utf-8')).hexdigest()
+        if self.pas_generator_encrypt.get() == 'sha3_384':
+            password = sha3_384(password.encode('utf-8')).hexdigest()
+        if self.pas_generator_encrypt.get() == 'sha3_512':
+            password = sha3_512(password.encode('utf-8')).hexdigest()
+        if self.pas_generator_encrypt.get() == 'shake_128':
+            password = shake_128(password.encode('utf-8')).hexdigest(255)
+        if self.pas_generator_encrypt.get() == 'shake_256':
+            password = shake_256(password.encode('utf-8')).hexdigest(255)
+
+        self.pas_generator_result.configure(state=NORMAL)
+        self.pas_generator_result.insert(END, password)
+        self.pas_generator_result.configure(state=DISABLED)
+        btn_copy = Button(
+            self.pas_generator_block,
+            text=LANGUAGE[self.language]['pas_generator_copy'],
+            command=self.copy_generate_password,
+            cursor='based_arrow_down'
+        )
+        btn_copy.place(anchor='c', relx=.5, rely=.84)
+        btn_copy.after(10000, btn_copy.destroy)
 
     @staticmethod
     def open_webbrowser(url: str):
         webopen(url)
 
 
+class Splash(Toplevel):
+    def __init__(self):
+        Toplevel.__init__(self, background='#DF9953')
+        self.overrideredirect(1)
+        self.geometry('600x600')
+        x = (self.winfo_screenwidth() -
+             self.winfo_reqwidth()) / 2
+        y = (self.winfo_screenheight() -
+             self.winfo_reqheight()) / 2
+        self.wm_geometry("+%d+%d" % (x - 200, y - 200))
+        self.update()
+
+
 class Build(Chek_value, Actions):
     def __init__(self):
-        super().__init__()
+        start_time = time.time()
         self.Main_window = ThemedTk(theme='black')
+        self.Main_window.withdraw()
+        splash = Splash()
+        time.sleep(5)
         self.Main_window.title('F_Reference_H')
         self.Main_window.geometry('1200x500')
         x = (self.Main_window.winfo_screenwidth() -
              self.Main_window.winfo_reqwidth()) / 4
         y = (self.Main_window.winfo_screenheight() -
              self.Main_window.winfo_reqheight()) / 4
-        self.Main_window.wm_geometry("+%d+%d" % (x - 50, y))
+        self.Main_window.wm_geometry("+%d+%d" % (x - 70, y + 50))
         self.Main_window.resizable(width=False, height=False)
         self.Main_window.iconphoto(True, PhotoImage(
             file='settings/ico/ico_main.png'))
+        super().__init__()
 
         help_png_img = Image.open(f'{self.path_ico}/help.png')
         help_png = ImageTk.PhotoImage(help_png_img)
@@ -1103,185 +1200,202 @@ class Build(Chek_value, Actions):
             )
             self.optimaze_flowhack_2.place(relx=.89, rely=.265)
 
-        # Заполнение pas_generate_block
-        Label(
-            self.pas_generator_block,
-            font=('Times New Roman', 15, 'bold italic'),
-            text=LANGUAGE[self.language]['pas_generator_main_title']
-        ).place(relx=.5, y=20, anchor='c')
-        frame_pas_generat = Frame(
-            self.pas_generator_block,
-            borderwidth=0.5,
-            relief='solid'
-        )
-        frame_pas_generat.place(
-            relx=.5,
-            rely=.3,
-            anchor='c',
-            relwidth=.9,
-            relheight=.3
-        )
-        self.chk_pas_symbol = BooleanVar()
-        self.chk_pas_symbol.set(bool(False))
-        self.chk_pas_number = BooleanVar()
-        self.chk_pas_number.set(bool(True))
-        self.chk_pas_upper = BooleanVar()
-        self.chk_pas_upper.set(bool(True))
-        Checkbutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_symbols'],
-            var=self.chk_pas_symbol,
-            cursor='cross'
-        ).place(relx=.05, rely=.1)
-        Checkbutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_number'],
-            var=self.chk_pas_number,
-            cursor='cross'
-        ).place(relx=.05, rely=.44)
-        Checkbutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_upper'],
-            var=self.chk_pas_number,
-            cursor='cross'
-        ).place(relx=.05, rely=.78)
-        self.pas_generator_encrypt = StringVar()
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_sha1'],
-            variable=self.pas_generator_encrypt,
-            value='sha1',
-            cursor='tcross'
-        ).place(rely=.1, relx=.54)
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_md5'],
-            variable=self.pas_generator_encrypt,
-            value='md5',
-            cursor='tcross'
-        ).place(rely=.1, relx=.62)
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_sha224'],
-            variable=self.pas_generator_encrypt,
-            value='sha224',
-            cursor='tcross'
-        ).place(rely=.1, relx=.7)
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_sha256'],
-            variable=self.pas_generator_encrypt,
-            value='sha256',
-            cursor='tcross'
-        ).place(rely=.1, relx=.8)
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_sha384'],
-            variable=self.pas_generator_encrypt,
-            value='sha384',
-            cursor='tcross'
-        ).place(rely=.1, relx=.9)
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_sha512'],
-            variable=self.pas_generator_encrypt,
-            value='sha512',
-            cursor='tcross'
-        ).place(rely=.44, relx=.54)
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_blake2b'],
-            variable=self.pas_generator_encrypt,
-            value='blake2b',
-            cursor='tcross'
-        ).place(rely=.44, relx=.62)
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_blake2s'],
-            variable=self.pas_generator_encrypt,
-            value='blake2s',
-            cursor='tcross'
-        ).place(rely=.44, relx=.7)
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_sha3_384'],
-            variable=self.pas_generator_encrypt,
-            value='sha3_384',
-            cursor='tcross'
-        ).place(rely=.44, relx=.8)
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_sha3_512'],
-            variable=self.pas_generator_encrypt,
-            value='sha3_512',
-            cursor='tcross'
-        ).place(rely=.44, relx=.9)
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_shake_128'],
-            variable=self.pas_generator_encrypt,
-            value='shake_128',
-            cursor='tcross'
-        ).place(rely=.78, relx=.8)
-        Radiobutton(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_shake_256'],
-            variable=self.pas_generator_encrypt,
-            value='shake_256',
-            cursor='tcross'
-        ).place(rely=.78, relx=.9)
-        Label(
-            frame_pas_generat,
-            text=LANGUAGE[self.language]['pas_generator_count_symbols'],
-            font=('Times New Roman', 12, 'bold italic')
-        ).place(rely=.78, relx=.54)
-        self.pas_generator_count = IntVar()
-        self.pas_generator_count.set(8)
-        Spinbox(
-            frame_pas_generat,
-            from_=5,
-            to=20,
-            textvariable=self.pas_generator_count,
-            font=('Times New Roman', 12, 'bold italic'),
-            foreground='black',
-            state='readonly'
-        ).place(relx=.7, rely=.72, relwidth=.05)
-        Label(
-            self.pas_generator_block,
-            text=LANGUAGE[self.language]['pas_generator_result'],
-            font=('Times New Roman', 12, 'bold italic')
-        ).place(anchor='c', relx=.5, rely=.55)
-        self.pas_generator_result = Text(
-            self.pas_generator_block,
-            state=DISABLED,
-            font=('Times New Roman', 11, 'bold')
-        ).place(anchor='c', relx=.5, rely=.62, relwidth=.6, height=25)
-        Button(
-            self.pas_generator_block,
-            text=LANGUAGE[self.language]['pas_generator_copy']
-        ).place(anchor='c', relx=.5, rely=.72)
-        flowhack_pas_generate_1 = Label(
-            self.pas_generator_block,
-            image=self.max_flowhack
-        )
-        flowhack_pas_generate_1.bind(
-            '<Button-1>',
-            lambda no_matter: self.open_webbrowser(
-                'http://vk.com/id311966436'
+            # Заполнение pas_generate_block
+            Label(
+                self.pas_generator_block,
+                font=('Times New Roman', 15, 'bold italic'),
+                text=LANGUAGE[self.language]['pas_generator_main_title']
+            ).place(relx=.5, y=20, anchor='c')
+            frame_pas_generat = Frame(
+                self.pas_generator_block,
+                borderwidth=0.5,
+                relief='solid'
             )
-        )
-        flowhack_pas_generate_1.place(x=20, rely=.9)
-        flowhack_pas_generate_2 = Label(
-            self.pas_generator_block,
-            image=self.max_flowhack
-        )
-        flowhack_pas_generate_2.bind(
-            '<Button-1>',
-            lambda no_matter: self.open_webbrowser(
-                'http://vk.com/id311966436'
+            frame_pas_generat.place(
+                relx=.5,
+                rely=.3,
+                anchor='c',
+                relwidth=.9,
+                relheight=.3
             )
-        )
-        flowhack_pas_generate_2.place(relx=.85, rely=.9)
+            self.chk_pas_symbol = BooleanVar()
+            self.chk_pas_symbol.set(bool(False))
+            self.chk_pas_number = BooleanVar()
+            self.chk_pas_number.set(bool(True))
+            self.chk_pas_upper = BooleanVar()
+            self.chk_pas_upper.set(bool(True))
+            Checkbutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_symbols'],
+                var=self.chk_pas_symbol,
+                cursor='cross'
+            ).place(relx=.05, rely=.1)
+            Checkbutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_number'],
+                var=self.chk_pas_number,
+                cursor='cross'
+            ).place(relx=.05, rely=.44)
+            Checkbutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_upper'],
+                var=self.chk_pas_upper,
+                cursor='cross'
+            ).place(relx=.05, rely=.78)
+            self.pas_generator_encrypt = StringVar()
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_sha1'],
+                variable=self.pas_generator_encrypt,
+                value='sha1',
+                cursor='tcross'
+            ).place(rely=.1, relx=.54)
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_md5'],
+                variable=self.pas_generator_encrypt,
+                value='md5',
+                cursor='tcross'
+            ).place(rely=.1, relx=.62)
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_sha224'],
+                variable=self.pas_generator_encrypt,
+                value='sha224',
+                cursor='tcross'
+            ).place(rely=.1, relx=.7)
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_sha256'],
+                variable=self.pas_generator_encrypt,
+                value='sha256',
+                cursor='tcross'
+            ).place(rely=.1, relx=.8)
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_sha384'],
+                variable=self.pas_generator_encrypt,
+                value='sha384',
+                cursor='tcross'
+            ).place(rely=.1, relx=.9)
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_sha512'],
+                variable=self.pas_generator_encrypt,
+                value='sha512',
+                cursor='tcross'
+            ).place(rely=.44, relx=.54)
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_blake2b'],
+                variable=self.pas_generator_encrypt,
+                value='blake2b',
+                cursor='tcross'
+            ).place(rely=.44, relx=.62)
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_blake2s'],
+                variable=self.pas_generator_encrypt,
+                value='blake2s',
+                cursor='tcross'
+            ).place(rely=.44, relx=.7)
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_sha3_384'],
+                variable=self.pas_generator_encrypt,
+                value='sha3_384',
+                cursor='tcross'
+            ).place(rely=.44, relx=.8)
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_sha3_512'],
+                variable=self.pas_generator_encrypt,
+                value='sha3_512',
+                cursor='tcross'
+            ).place(rely=.44, relx=.9)
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_shake_128'],
+                variable=self.pas_generator_encrypt,
+                value='shake_128',
+                cursor='tcross'
+            ).place(rely=.78, relx=.8)
+            Radiobutton(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_shake_256'],
+                variable=self.pas_generator_encrypt,
+                value='shake_256',
+                cursor='tcross'
+            ).place(rely=.78, relx=.9)
+            Label(
+                frame_pas_generat,
+                text=LANGUAGE[self.language]['pas_generator_count_symbols'],
+                font=('Times New Roman', 12, 'bold italic')
+            ).place(rely=.78, relx=.54)
+            self.pas_generator_count = IntVar()
+            self.pas_generator_count.set(8)
+            Spinbox(
+                frame_pas_generat,
+                from_=5,
+                to=20,
+                textvariable=self.pas_generator_count,
+                font=('Times New Roman', 12, 'bold italic'),
+                foreground='black',
+                state='readonly'
+            ).place(relx=.7, rely=.72, relwidth=.05)
+            Button(
+                self.pas_generator_block,
+                text=LANGUAGE[self.language]['pas_generator_reset'],
+                cursor='exchange',
+                command=self.password_generator_reset
+            ).place(rely=.5, anchor='c', relx=.5)
+            Label(
+                self.pas_generator_block,
+                text=LANGUAGE[self.language]['pas_generator_result'],
+                font=('Times New Roman', 12, 'bold italic')
+            ).place(anchor='c', relx=.5, rely=.61)
+            self.pas_generator_result = Entry(
+                self.pas_generator_block,
+                state=DISABLED,
+                font=('Times New Roman', 12, 'bold'),
+                justify='center',
+                foreground='black'
+            )
+            self.pas_generator_result.place(
+                anchor='c',
+                relx=.5,
+                rely=.68,
+                relwidth=.9,
+                height=25
+            )
+            Button(
+                self.pas_generator_block,
+                text=LANGUAGE[self.language]['pas_generator_create'],
+                command=self.password_generate,
+                cursor='hand1'
+            ).place(anchor='c', relx=.5, rely=.77)
+            flowhack_pas_generate_1 = Label(
+                self.pas_generator_block,
+                image=self.max_flowhack
+            )
+            flowhack_pas_generate_1.bind(
+                '<Button-1>',
+                lambda no_matter: self.open_webbrowser(
+                    'http://vk.com/id311966436'
+                )
+            )
+            flowhack_pas_generate_1.place(x=20, rely=.9)
+            flowhack_pas_generate_2 = Label(
+                self.pas_generator_block,
+                image=self.max_flowhack
+            )
+            flowhack_pas_generate_2.bind(
+                '<Button-1>',
+                lambda no_matter: self.open_webbrowser(
+                    'http://vk.com/id311966436'
+                )
+            )
+            flowhack_pas_generate_2.place(relx=.85, rely=.9)
 
         # !!!!!! BUILD_SETTINGS_BLOCK !!!!!!
 
@@ -1490,7 +1604,8 @@ class Build(Chek_value, Actions):
         self.input_language = Combobox(
             self.frame_optimization_3,
             font=('Times New Roman', 12, 'bold italic'),
-            state='readonly'
+            state='readonly',
+            cursor='hand2'
         )
         self.input_language.set(self.language)
         self.input_language['values'] = LANGUAGE_LIST
@@ -1646,7 +1761,8 @@ class Build(Chek_value, Actions):
         flowhack_help_2 = Label(
             self.help_block,
             image=self.max_flowhack,
-            cursor='heart'
+            cursor='heart',
+            justify='center'
         )
         flowhack_help_2.bind(
             '<Button-1>',
@@ -1656,6 +1772,9 @@ class Build(Chek_value, Actions):
         )
         flowhack_help_2.place(relx=.85, rely=.9)
 
+        splash.destroy()
+        self.Main_window.deiconify()
+        print(time.time() - start_time)
         self.completion_list(start_list=bool(False))
         self.Main_window.protocol("WM_DELETE_WINDOW", exit_ex)
         self.Main_window.mainloop()
@@ -1767,6 +1886,42 @@ class Build(Chek_value, Actions):
         self.optimizee_window.mainloop()
 
     def Add_edit(self, doing, name_list, name_record=None):
+        def chek_save():
+            if doing == 'EDIT':
+                text, text_old = \
+                    self.text_addedit.get(1.0, END), addedit_all[2] + '\n'
+                name, name_old = \
+                    self.input_addedit_name.get().lstrip().rstrip(), \
+                    addedit_all[1]
+                if (text == text_old) and (name == name_old):
+                    self.Add_edit_window.destroy()
+                else:
+                    answer = askyesnocancel(
+                        'Exit?',
+                        LANGUAGE[self.language]['add_edit_exit_or_no']
+                    )
+                    if answer:
+                        save()
+                    elif answer == bool(False):
+                        self.Add_edit_window.destroy()
+                    else:
+                        pass
+            else:
+                text = self.text_addedit.get(1.0, END)
+                name = self.input_addedit_name.get().lstrip().rstrip()
+                if (text.isspace() == bool(False)) or \
+                        ((name != '') and (name != ' ')):
+                    answer = askyesnocancel('Exit?', LANGUAGE[self.language][
+                        'add_edit_exit_or_no'])
+                    if answer:
+                        save()
+                    elif answer == bool(False):
+                        self.Add_edit_window.destroy()
+                    else:
+                        pass
+                else:
+                    self.Add_edit_window.destroy()
+
         def apply():
             return self.text_addedit.configure(
                 font=(
@@ -1776,7 +1931,7 @@ class Build(Chek_value, Actions):
             )
 
         def save():
-            name = self.input_addedit_name.get()
+            name = self.input_addedit_name.get().lstrip().rstrip()
             font = self.input_addedit_font.get()
             size = self.input_size_addedit.get()
             text = self.text_addedit.get(1.0, END)
@@ -1785,6 +1940,14 @@ class Build(Chek_value, Actions):
                     raise NameError('Record too long')
                 if not set(":;!*#¤&").isdisjoint(name):
                     raise NameError('unacceptable_symbols')
+                if name == 'name':
+                    raise NameError('name')
+                if text == 'text':
+                    raise NameError('text')
+                if (text == '') or (text == ' '):
+                    raise NameError('text_null')
+                if name == '':
+                    raise NameError('name_null')
 
                 if doing == 'EDIT':
                     self.cursor_sql.execute(
@@ -1816,6 +1979,26 @@ class Build(Chek_value, Actions):
                     showerror(
                         'Error',
                         ERROR[self.language]['unacceptable_symbols']
+                    )
+                if str(error) == 'name':
+                    showerror(
+                        'Error',
+                        ERROR[self.language]['not_name']
+                    )
+                if str(error) == 'text':
+                    showerror(
+                        'Error',
+                        ERROR[self.language]['not_text']
+                    )
+                if str(error) == 'text_null':
+                    showerror(
+                        'Error',
+                        ERROR[self.language]['text_null']
+                    )
+                if str(error) == 'name_null':
+                    showerror(
+                        'Error',
+                        ERROR[self.language]['name_null']
                     )
 
         if doing == 'ADD':
@@ -1852,6 +2035,7 @@ class Build(Chek_value, Actions):
             True,
             PhotoImage(file='settings/ico/ico_main.png')
         )
+        self.Add_edit_window.protocol("WM_DELETE_WINDOW", chek_save)
 
         frame = Frame(self.Add_edit_window, borderwidth=0.5, relief='solid')
         frame.place(relwidth=1, height=120)
