@@ -366,17 +366,22 @@ class Chek_value:
 
 class Actions:
     def completion_list(self, start_list=bool(True)):
-        counter = 1
         self.list_block_1.delete(0, END)
         self.list_block_2.delete(0, END)
 
-        if start_list: self.list_record_ONE, self.list_record_TWO = \
-            self.create_value_records()
+        if start_list:
+            self.list_record_ONE, self.list_record_TWO = \
+                self.create_value_records()
 
+        counter = 1
         for record in self.list_record_ONE:
             self.list_block_1.insert(END, f' {counter}: {record[1]}')
+            counter += 1
+
+        counter = 1
         for record in self.list_record_TWO:
             self.list_block_2.insert(END, f' {counter}: {record[1]}')
+            counter += 1
 
     def copy_optimaze(self):
         self.id_text.clipboard_clear()
@@ -495,7 +500,7 @@ class Actions:
                 bolds = "{bold_TWO}",
                 italics = "{italic_TWO}",
                 underlines = "{underline_TWO}"
-                WHERE main_name = "TWO-"'''
+                WHERE main_name = "TWO"'''
             )
             self.connect_sql.commit()
             self.cursor_sql.execute(
