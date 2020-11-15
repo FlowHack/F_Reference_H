@@ -9,8 +9,9 @@ from email.mime.text import MIMEText
 from hashlib import (blake2b, blake2s, md5, sha1, sha3_384, sha3_512, sha224,
                      sha256, sha384, sha512, shake_128, shake_256)
 from io import BytesIO
+from subprocess import Popen
 from mimetypes import guess_type
-from os import getcwd, listdir, mkdir, path
+from os import getcwd, listdir, mkdir, path, name, remove
 from os.path import exists, isfile
 from random import choice
 from smtplib import SMTP_SSL, SMTPAuthenticationError
@@ -20,7 +21,7 @@ from time import sleep
 from tkinter import (DISABLED, END, NORMAL, WORD, BooleanVar, IntVar, Listbox,
                      PhotoImage, StringVar, Text, Toplevel)
 from tkinter.filedialog import askopenfilename
-from tkinter.messagebox import askyesnocancel, showerror
+from tkinter.messagebox import askyesnocancel, showerror, askyesno
 from tkinter.ttk import (Button, Checkbutton, Combobox, Entry, Frame, Label,
                          Notebook, Radiobutton, Scrollbar, Spinbox)
 from webbrowser import open as webopen
@@ -28,17 +29,26 @@ from webbrowser import open as webopen
 from PIL import Image, ImageTk
 from ttkthemes import ThemedTk
 from urllib.request import urlretrieve
+from requests import get as get_url_response
+import requests.exceptions
+from bs4 import BeautifulSoup
 
-start: bool = True
-SAIT = 'https://flowhack.github.io/'
-VK = 'http://vk.com/id311966436'
-VERSION = '1'
-DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
-ICO = ['add_file.png', 'average_flowhack.png', 'browse.png', 'eyeclose.png',
+
+VERSION: str = '1'
+DATE_FORMAT: str = '%Y-%m-%d %H:%M:%S'
+SAIT: str = 'https://flowhack.github.io/'
+VK: str = 'http://vk.com/id311966436'
+URL_UPDATE_WINDOWS: str = 'https://flowhack.github.io/download/Windows' \
+                          '/update/Update.py '
+NAME_UPDATE_WINDOWS: str = 'Update.exe'
+ICO: list = ['add_file.png', 'average_flowhack.png', 'browse.png', 'eyeclose.png',
        'eyeopen.png', 'help.png', 'ico_main.png', 'main.ico',
        'max_flowhack.png', 'mini_flowhack.png', 'move.png', 'ok.png',
        'send.png', 'trash.png', 'update.png']
-LANGUAGE = {
+LANGUAGE_LIST: list = ['Russian', 'English']
+FONT: list = ['Times New Roman', 'Calibri', 'Arial', 'Helvetica', 'Courier']
+VALUE_MAIL: list = ['list.ru', 'bk.ru', 'inbox.ru', 'mail.ru', 'gmail.com']
+LANGUAGE: tuple = {
     'Russian': {
         'main_block': 'Главная',
         'other_block': 'Другое',
@@ -185,80 +195,8 @@ LANGUAGE = {
         'help_license': 'By using the program you give permission to process personal data and \n You agree to the terms of the license agreement',
         'download_ico': "We didn't find some icons in the program folder! Now they will be installed, for this we need the Internet!",
     },
-    'French': {
-        'main_block': 'Domicile',
-        'other_block': 'Autre',
-        'settings_block': 'Réglages',
-        'report_block': "Retour d'information",
-        'optimization_block': 'Optimisation des identifiants',
-        'previously_created': 'Créée précédemment',
-        'label_opt_main': 'Entrez vos identifiants dans le champ',
-        'btn_optimaze': 'Optimiser',
-        'lab_shortcat_id': 'Les raccourcis clavier peuvent ne pas fonctionner sur la disposition russe (<Ctrl A> - Tout sélectionner, <Ctrl C> - Copier, <Ctrl X> - Couper, <Ctrl V> - Coller)',
-        'lab_set_name': 'Nom',
-        'lab_set_font': 'Caractère',
-        'lab_set_size': 'La taille',
-        'input_set_bold': 'Gras',
-        'input_set_italic': 'Italique',
-        'input_set_underline': 'Souligner',
-        'set_onoff_other_block': 'Activer le bloc "Autre"',
-        'set_language': 'Langue du programme',
-        'lab_rep_email': 'Email',
-        'lab_rep_pas': 'Mot de passe',
-        'lab_rep_addfile': 'Attacher. fichier',
-        'lab_input_rep_addfile': 'Sélectionnez un fichier en cliquant sur le bouton ==>',
-        'lab_rep_text_vk': "Vous pouvez m'écrire sur Vkontakte, cliquez sur ==>",
-        'lbl_help_sait': "Vous pouvez ouvrir l'aide du programme sur le site Web, cliquez sur ==>",
-        'lbl_add_main': 'Ajouter un enregistrement à un bloc',
-        'lbl_edit_main': "Modification d'un enregistrement de bloc",
-        'lab_addedit_name': 'Nom',
-        'lab_addedit_font': 'Caractère',
-        'lab_addedit_size': 'La taille',
-        'btn_addedit_apply': 'Appliquer au texte',
-        'btn_addedit_save': 'Sauvegarder',
-        'send_email_great': 'Tout parfaitement! Message envoyé!',
-        'send_email_wait': "Si ce message n'est pas envoyé dans les 5 à 15 secondes, une erreur s'est produite!",
-        'label_opt_main_id': "Il s'est avéré au total: ",
-        'btn_optimaze_copy': 'Copier le champ',
-        'format_optimize_1': 'https://vk.com/id+valeur',
-        'format_optimize_2': '@id+valeur',
-        'format_optimize_3': 'id+valeur',
-        'format_optimize_4': 'valeur',
-        'format_optimize': 'Formats de sortie',
-        'optimizee_name': 'Nom',
-        'optimizee_date': 'Date de création',
-        'del_old_optimize': 'Supprimer les anciennes entrées',
-        'del_all_optimize': 'Supprimer toutes les entrées',
-        'HELP_TEXT': "Toute l'aide dont vous avez besoin est disponible sur https://flowhack.github.io/\nUtilisation du programme, des fonctions supplémentaires, des raccourcis clavier, du contrat de licence, etc.",
-        'HELP_SAIT': 'Copier le lien',
-        'pas_generator_block': 'Générateur de mot de passe',
-        'pas_generator_main_title': 'Générons un mot de passe!',
-        'pas_generator_result': 'Votre mot de passe:',
-        'pas_generator_count_symbols': 'Personnages',
-        'pas_generator_symbols': 'Utiliser des sivols supplémentaires',
-        'pas_generator_number': 'Utilisez des nombres',
-        'pas_generator_upper': 'Utiliser des lettres majuscules',
-        'pas_generator_sha1': 'SHA1',
-        'pas_generator_md5': 'MD5',
-        'pas_generator_sha224': 'SHA224',
-        'pas_generator_sha256': 'SHA256',
-        'pas_generator_sha384': 'SHA384',
-        'pas_generator_sha512': 'SHA512',
-        'pas_generator_blake2b': 'BLAKE2b',
-        'pas_generator_blake2s': 'BLAKE2s',
-        'pas_generator_sha3_384': 'SHA3_384',
-        'pas_generator_sha3_512': 'SHA3_512',
-        'pas_generator_shake_128': 'SHAKE_128',
-        'pas_generator_shake_256': 'SHAKE_256',
-        'pas_generator_copy': 'Copier le mot de passe',
-        'pas_generator_create': 'Produire',
-        'pas_generator_reset': 'Réinitialiser',
-        'add_edit_exit_or_no': "Nous avons remarqué que vous n'avez pas enregistré vos données! \n\nVoulez-vous sauvegarder vos données?",
-        'help_license': 'En utilisant le programme, vous autorisez le traitement des données personnelles et \nVous acceptez les termes du contrat de licence',
-        'download_ico': "Nous n'avons pas trouvé d'icônes dans le dossier du programme! Maintenant, ils seront installés, pour cela nous avons besoin d'Internet!",
-    }
 }
-ERROR = {
+ERROR: tuple = {
     'Russian': {
         'delete': 'Произошла непредвиденная ошибка!\n\nВы не выбрали запись!',
         'addedit_name': 'Похоже, что длина введеного вами имени документа длиннее 40 сиволов!\n\nИсправьте эту ошибку! <Краткость - сестра таланта>',
@@ -305,39 +243,17 @@ ERROR = {
         'unacceptable_symbols_TWO': 'You have used invalid characters in the name of the second block! (:;!*#¤&)',
         'download_ico_internet': f"An unexpected error has occurred!\n\nPerhaps your Internet is turned off! We can't download the files we need, so we have to cancel the launch of the program.\n\nIf you cannot solve the problem, then download the program from the {SAIT} website in an archive!",
     },
-    'French': {
-        'delete': "Une erreur inattendue est survenue!\n\nVous n'avez sélectionné aucune entrée!",
-        'addedit_name': "Il semble que le nom du document que vous avez entré compte plus de 40 symboles!\n\nCorrigez cette erreur! <La brièveté est la sœur du talent>",
-        'settings_title_ONE': "Il semble que le nom que vous avez entré dans le premier document compte plus de 40 symboles!\n\nИcorrige cette erreur! <La brièveté est la sœur du talent>",
-        'settings_title_TWO': "Il semble que la longueur du nom que vous avez entré dans le deuxième document dépasse 40 symboles!\n\nCorrigez cette erreur! <La brièveté est la sœur du talent>",
-        'settings_title_is_empty_ONE': "Il semble que vous ayez entré une ligne vide dans le titre du premier document!\n\nCorrigez cette erreur!Et puis quelque chose s'avère trop vide :)",
-        'settings_title_is_empty_TWO': 'Il semble que vous ayez entré une ligne vide dans le titre du deuxième document!\n\nCorrigez cette erreur!',
-        'report_gmail': "Identifiant ou mot de passe incorrect!\n\nNous avons remarqué que vous envoyez un message depuis @ gmail.com, il vous est peut-être interdit d'envoyer à partir de sources inconnues, alors pour résoudre le problème, suivez le lien que nous avons maintenant ajouté dans le champ de texte et activez la fonction d'envoi de messages à partir de sources inconnues! Vous pouvez également utiliser juste un autre courrier.\n\nAttention! Après avoir envoyé le message, assurez-vous de désactiver la fonction sur le site! Nous ne sommes pas responsables de vos actions!",
-        'report_connect': "Une erreur inattendue est survenue!\n\nVeuillez vérifier votre connexion réseau, redémarrez le programme. Si vous ne pouvez pas corriger l'erreur, écrivez sur l'erreur dans l'onglet approprié de l'application, nous vous aiderons :)\n\nSi vous ne pouvez pas corriger l'erreur, écrivez sur l'erreur dans l'onglet approprié de l'application, nous vous aiderons :)",
-        'report_title_addr_is_empty': "Vous n'avez pas rempli le champ EMAIL!\n\nRemplissez-le, c'est obligatoire)",
-        'report_password_is_empty': "Vous n'avez pas rempli le champ Mot de passe!\n\ncRemplissez-le, c'est obligatoire)",
-        'report_message_is_empty': "Vous n'avez pas écrit de message! Est-ce une blague pour vous?\n\ncRemplissez-le, c'est obligatoire)",
-        'report_time': "Pour des raisons de sécurité, nous avons interdit l'envoi de messages plus d'une fois par heure.\n\nVous pouvez écrire en {time_ost: 0.0f} minutes.",
-        'report_message_too_short': 'Vous avez écrit un message trop court, vryatli vous avez bien pu y exprimer votre pensée!\n\nDites-le en détail, au moins 30 caractères! Nous devons encore comprendre et résoudre ce problème!',
-        'unacceptable_symbols': 'Vous avez utilisé des caractères invalides! (:;!*#¤&)',
-        'not_name': 'Désolé, mais "nom" ne peut pas être utilisé!',
-        'not_text': 'Désolé, mais vous ne pouvez pas simplement appeler le contenu du texte "texte!"',
-        'text_null': 'Le champ de texte est vide! Vous ne pouvez pas le faire de cette façon!',
-        'name_null': 'cLe champ de titre est vide! Vous ne pouvez pas le faire de cette façon!',
-        'unacceptable_symbols_ONE': 'Vous avez utilisé des caractères invalides dans le nom du premier bloc! (:;!*#¤&)',
-        'unacceptable_symbols_TWO': 'Vous avez utilisé des caractères invalides dans le nom du deuxième bloc! (:;!*#¤&)',
-        'download_ico_internet': f"Une erreur inattendue est survenue!\n\nPeut-être que votre Internet est désactivé! Nous ne pouvons pas télécharger les fichiers dont nous avons besoin, nous devons donc annuler le lancement du programme.\n\nSi vous ne parvenez pas à résoudre le problème, téléchargez le programme depuis le site Web {SAIT} dans une archive!",
-    }
 }
-LANGUAGE_LIST = ['Russian', 'English', 'French']
-FONT = ['Times New Roman', 'Calibri', 'Arial', 'Helvetica', 'Courier']
-VALUE_MAIL = ['list.ru', 'bk.ru', 'inbox.ru', 'mail.ru', 'gmail.com']
+start: bool = True
 
 
 class Chek_value:
     def __init__(self):
         self.path = getcwd()
         self.url_to_file = ''
+        if name == 'nf':
+            if 'Update.exe' in listdir(self.path):
+                remove(f'{self.path}/{NAME_UPDATE_WINDOWS}')
 
         # Create folder settings
         if 'settings' in listdir(self.path):
@@ -378,6 +294,22 @@ class Chek_value:
         else:
             mkdir(f'{self.path_settings}/ico')
             self.path_ico = f'{self.path_settings}/ico'
+
+    def update_check(self):
+        try:
+            response = get_url_response(SAIT)
+            soup = BeautifulSoup(response.text, 'lxml')
+            version = soup.find('p', id='version').text.split(': ')[1]
+            if float(version) > float(VERSION):
+                need = askyesno('Update', 'Вышло обновление! Обновить?')
+                if need:
+                    if name == 'nf':
+                        urlretrieve(URL_UPDATE_WINDOWS, NAME_UPDATE_WINDOWS)
+                        Popen(f'{self.path}/{NAME_UPDATE_WINDOWS}')
+                        exit_ex()
+
+        except requests.exceptions.ConnectionError:
+            pass
 
     def download_page(self):
         def download_ico(name):
@@ -2096,8 +2028,10 @@ class Build(Chek_value, Actions):
         super().__init__()
         self.download_page()
         splash = Splash()
-        self.Main_window.iconphoto(True, PhotoImage(
-            file='settings/ico/ico_main.png'))
+        self.Main_window.iconphoto(
+            True,
+            PhotoImage(file='settings/ico/ico_main.png')
+        )
 
         help_png_img = Image.open(f'{self.path_ico}/help.png')
         help_png = ImageTk.PhotoImage(help_png_img)
@@ -3007,6 +2941,7 @@ class Build(Chek_value, Actions):
         splash.destroy()
         self.Main_window.deiconify()
         self.completion_list(start_list=bool(False))
+        self.update_check()
         self.Main_window.protocol("WM_DELETE_WINDOW", exit_ex)
         self.Main_window.mainloop()
 

@@ -27,18 +27,21 @@ class App(ThemedTk):
              self.winfo_reqheight()) / 2
         self.wm_geometry("+%d+%d" % (x - 150, y - 20))
         self.resizable(width=False, height=False)
-        self.iconphoto(True, PhotoImage(
-            file='bin/ico/ico_main.png'))
+        self.iconphoto(
+            True,
+            PhotoImage(file='bin/ico/ico_main.png')
+        )
         flow_hack_png = Image.open(f'bin/ico/max_flowhack.png')
         flow_hack_png = ImageTk.PhotoImage(flow_hack_png)
         browse_png = Image.open(f'bin/ico/browse.png')
         browse_png = ImageTk.PhotoImage(browse_png)
-        Frame(self).place(relwidth=1, relheight=1)
+        self.frame = Frame(self)
+        self.frame.place(relwidth=1, relheight=1)
         self.url = ''
         self._path = getcwd()
 
         flow_hack_label = Label(
-            self,
+            self.frame,
             image=flow_hack_png,
             cursor='heart'
         )
@@ -47,18 +50,18 @@ class App(ThemedTk):
         self.check_icon = BooleanVar()
         self.check_icon.set(bool(True))
         Checkbutton(
-            self,
+            self.frame,
             text='Создать ярлык на рабочем столе',
             var=self.check_icon,
             cursor='cross'
         ).place(relx=.5, y=60, anchor='c')
         Label(
-            self,
+            self.frame,
             text='Выберите папку для установки',
             font=('Times New Roman', 10, 'bold italic')
         ).place(relx=.5, rely=.485, anchor='c')
         self.input_url = Entry(
-            self,
+            self.frame,
             state=DISABLED,
             font=('Times New Roman', 9, 'bold italic'),
             foreground='black'
@@ -71,25 +74,25 @@ class App(ThemedTk):
             anchor='c'
         )
         Button(
-            self,
+            self.frame,
             image=browse_png,
             cursor='hand1',
             command=self.directory
         ).place(relx=.86, rely=.455)
         Button(
-            self,
+            self.frame,
             image=browse_png,
             cursor='hand1',
             command=self.directory
         ).place(relx=.045, rely=.455)
         Button(
-            self,
+            self.frame,
             text='Установить',
             cursor='hand1',
             command=self.install
         ).place(relx=.5, rely=.75, anchor='c')
         self.license = Label(
-            self,
+            self.frame,
             text='Для подтверждения согласия с лицензионным '
                  'соглашением\nНажмите на "Установить" правой кнопкой мыши',
             font=('Times New Roman', 9, 'bold italic'),
@@ -138,7 +141,7 @@ class App(ThemedTk):
                     f'WScript.Shell).CreateShortcut('
                     f'\'%USERPROFILE%/Desktop/F_Reference_H.lnk\');$x'
                     f'.TargetPath=\''
-                    f'{url}/F_Reference_H/F_Reference_H.py\';$x'
+                    f'{url}/F_Reference_H/F_Reference_H.exe\';$x'
                     f'.WorkingDirectory=\''
                     f'{url}/F_Reference_H\';$x.Save()\" '
                 )
@@ -148,7 +151,7 @@ class App(ThemedTk):
                     f'\'%APPDATA%\Microsoft\Windows\Start '
                     f'Menu\Programs\F_Reference_H.lnk\');$x'
                     f'.TargetPath=\''
-                    f'{url}/F_Reference_H/F_Reference_H.py\';$x'
+                    f'{url}/F_Reference_H/F_Reference_H.exe\';$x'
                     f'.WorkingDirectory=\'{url}/F_Reference_H\';$x.Save()\"')
                 showinfo('Successfully', 'Установка прошла успешно!')
                 exit_ex()
