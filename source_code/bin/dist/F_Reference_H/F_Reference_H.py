@@ -38,8 +38,9 @@ VERSION: str = '1'
 DATE_FORMAT: str = '%Y-%m-%d %H:%M:%S'
 SAIT: str = 'https://flowhack.github.io/'
 VK: str = 'http://vk.com/id311966436'
+URL_ICON: str = 'https://flowhack.github.io/download/png/'
 URL_UPDATE_WINDOWS: str = 'https://flowhack.github.io/download/Windows' \
-                          '/update/Update.py '
+                          '/update/Update.exe '
 NAME_UPDATE_WINDOWS: str = 'Update.exe'
 ICO: list = ['add_file.png', 'average_flowhack.png', 'browse.png', 'eyeclose.png',
        'eyeopen.png', 'help.png', 'ico_main.png', 'main.ico',
@@ -251,7 +252,7 @@ class Chek_value:
     def __init__(self):
         self.path = getcwd()
         self.url_to_file = ''
-        if name == 'nf':
+        if name == 'nt':
             if 'Update.exe' in listdir(self.path):
                 remove(f'{self.path}/{NAME_UPDATE_WINDOWS}')
 
@@ -303,19 +304,21 @@ class Chek_value:
             if float(version) > float(VERSION):
                 need = askyesno('Update', 'Вышло обновление! Обновить?')
                 if need:
-                    if name == 'nf':
+                    if name == 'nt':
                         urlretrieve(URL_UPDATE_WINDOWS, NAME_UPDATE_WINDOWS)
                         Popen(f'{self.path}/{NAME_UPDATE_WINDOWS}')
                         exit_ex()
+                    else:
+                        print('Не поддерживается!')
 
         except requests.exceptions.ConnectionError:
             pass
 
     def download_page(self):
-        def download_ico(name):
+        def download_ico(_name):
             try:
-                url_name = f'{self.path_ico}/{name}'
-                urlretrieve(SAIT + 'download/png/' + name, url_name)
+                url_name = f'{self.path_ico}/{_name}'
+                urlretrieve(URL_ICON + _name, url_name)
             except BaseException as error:
                 if str(error) == '<urlopen error [Errno -3] Temporary ' \
                                  'failure in name resolution>':

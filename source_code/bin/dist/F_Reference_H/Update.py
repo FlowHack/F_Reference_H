@@ -10,11 +10,18 @@ from subprocess import Popen
 from ttkthemes import ThemedTk
 from PIL import Image, ImageTk
 
-URL_FILE = 'https://flowhack.github.io/download/Windows/dist/F_Reference_H.exe'
+URL_FILE = 'https://flowhack.github.io/download/Windows/distro/bin/dist/F_Reference_H/F_Reference_H.exe'
 NAME_FILE = 'F_Reference_H.exe'
 SAIT = 'https://flowhack.github.io/'
 VK = 'http://vk.com/id311966436'
 PATH = getcwd()
+
+
+def open_app():
+    if name == 'nt':
+        Popen(f'{PATH}/F_Reference_H.exe')
+
+    sys.exit()
 
 
 class Update(ThemedTk):
@@ -59,7 +66,7 @@ class Update(ThemedTk):
         flow_2.place(relx=.91, rely=.085, anchor='center')
         self.lbl_done = Label(
             self.frame,
-            text='ОБНОВАЛЕНИЕ',
+            text='ОБНОВЛЕНИЕ',
             font=('Times New Roman', 12, 'bold italic')
         )
         self.lbl_done.place(relx=.5, rely=.1, anchor='c')
@@ -92,7 +99,7 @@ class Update(ThemedTk):
 
     def updater_window(self):
         try:
-            if name == 'nf':
+            if name == 'nt':
                 with open(NAME_FILE, "wb") as f:
                     response = requests.get(URL_FILE, stream=True)
                     total_length = int(response.headers.get('content-length'))
@@ -120,7 +127,7 @@ class Update(ThemedTk):
                         )
                         self.btn_update.configure(
                             text='Открыть программу',
-                            command=self.open_app
+                            command=open_app
                         )
             elif name == 'posix':
                 showerror(
@@ -129,7 +136,7 @@ class Update(ThemedTk):
                 )
                 self.btn_update.configure(
                     text='Закрыть',
-                    command=self.open_app
+                    command=open_app
                 )
         except requests.exceptions.ConnectionError:
             showerror(
@@ -138,13 +145,6 @@ class Update(ThemedTk):
                 'подключение к интернету!\n\nЕсли не получается решить '
                 'проблему, то напишите мне в блоке "Обратная связь" '
             )
-
-    @staticmethod
-    def open_app():
-        if name == 'nf':
-            Popen(f'{PATH}/F_Reference_H.exe')
-
-        sys.exit()
 
 
 if __name__ == '__main__':
