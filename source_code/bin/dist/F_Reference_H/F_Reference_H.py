@@ -33,7 +33,6 @@ from requests import get as get_url_response
 import requests.exceptions
 from bs4 import BeautifulSoup
 
-
 VERSION: str = '1'
 DATE_FORMAT: str = '%Y-%m-%d %H:%M:%S'
 SAIT: str = 'https://flowhack.github.io/'
@@ -42,10 +41,11 @@ URL_ICON: str = 'https://flowhack.github.io/download/png/'
 URL_UPDATE_WINDOWS: str = 'https://flowhack.github.io/download/Windows' \
                           '/update/Update.exe '
 NAME_UPDATE_WINDOWS: str = 'Update.exe'
-ICO: list = ['add_file.png', 'average_flowhack.png', 'browse.png', 'eyeclose.png',
-       'eyeopen.png', 'help.png', 'ico_main.png', 'main.ico',
-       'max_flowhack.png', 'mini_flowhack.png', 'move.png', 'ok.png',
-       'send.png', 'trash.png', 'update.png']
+ICO: list = ['add_file.png', 'average_flowhack.png', 'browse.png',
+             'eyeclose.png',
+             'eyeopen.png', 'help.png', 'ico_main.png', 'main.ico',
+             'max_flowhack.png', 'mini_flowhack.png', 'move.png', 'ok.png',
+             'send.png', 'trash.png', 'update.png']
 LANGUAGE_LIST: list = ['Russian', 'English']
 FONT: list = ['Times New Roman', 'Calibri', 'Arial', 'Helvetica', 'Courier']
 VALUE_MAIL: list = ['list.ru', 'bk.ru', 'inbox.ru', 'mail.ru', 'gmail.com']
@@ -297,6 +297,7 @@ class Chek_value:
             self.path_ico = f'{self.path_settings}/ico'
 
     def update_check(self):
+        """Checks for an update, if any, installs"""
         try:
             response = get_url_response(SAIT)
             soup = BeautifulSoup(response.text, 'lxml')
@@ -315,7 +316,10 @@ class Chek_value:
             pass
 
     def download_page(self):
+        """Checks for the presence of icons, if not, then installs"""
+
         def download_ico(_name):
+            """Downloads icons"""
             try:
                 url_name = f'{self.path_ico}/{_name}'
                 urlretrieve(URL_ICON + _name, url_name)
@@ -340,15 +344,12 @@ class Chek_value:
                 download_ico(ICO[number])
 
     def settings_app(self):
+        """Takes data from the "settings" table"""
         self.cursor_sql.execute('SElECT * FROM settings')
 
         return self.cursor_sql.fetchall()
 
-    def check_ico_download(self):
-        self.cursor_sql.execute('SElECT * FROM list_block')
-
     def create_list_values(self):
-        # Создаем список font для блоков
         self.cursor_sql.execute('SElECT * FROM list_block')
         list_values = self.cursor_sql.fetchall()
         list_one = [
@@ -843,22 +844,25 @@ class Actions:
         def optimize_result(record_list, formats):
             finish = []
             for result_record in record_list:
-                if result_record[:2] == 'id':
-                    result_value = int(result_record[2:])
-                    if result_value > 100:
-                        finish.append(formats + result_record[2:])
-                elif result_record[:3] == '@id':
-                    result_value = int(result_record[3:])
-                    if result_value > 100:
-                        finish.append(formats + result_record[3:])
-                elif result_record[:17] == 'https://vk.com/id':
-                    result_value = int(result_record[17:])
-                    if result_value > 100:
-                        finish.append(formats + result_record[17:])
-                else:
-                    result_value = int(result_record)
-                    if result_value > 100:
-                        finish.append(formats + result_record)
+                try:
+                    if result_record[:2] == 'id':
+                        result_value = int(result_record[2:])
+                        if result_value > 100:
+                            finish.append(formats + result_record[2:])
+                    elif result_record[:3] == '@id':
+                        result_value = int(result_record[3:])
+                        if result_value > 100:
+                            finish.append(formats + result_record[3:])
+                    elif result_record[:17] == 'https://vk.com/id':
+                        result_value = int(result_record[17:])
+                        if result_value > 100:
+                            finish.append(formats + result_record[17:])
+                    else:
+                        result_value = int(result_record)
+                        if result_value > 100:
+                            finish.append(formats + result_record)
+                except ValueError:
+                    continue
 
             _finish = '\n'.join(set(finish))
             return _finish, len(finish)
@@ -876,8 +880,8 @@ class Actions:
                 "{result_finish[0]}")'''
             )
             self.label_opt_main.configure(
-                text=LANGUAGE[self.language]['label_opt_main_id'] + str(
-                    result_finish[1]),
+                text=f'{LANGUAGE[self.language]["label_opt_main_id"]}'
+                     f'{str(result_finish[1])}',
                 foreground='#FF757F'
             )
             self.label_opt_main.after(
@@ -896,8 +900,8 @@ class Actions:
             self.id_text.delete(1.0, END)
             self.id_text.insert(1.0, optimization_record[0])
             self.label_opt_main.configure(
-                text=LANGUAGE[self.language]['label_opt_main_id'] + str(
-                    optimization_record[1]),
+                text=f'{LANGUAGE[self.language]["label_opt_main_id"]}'
+                     f'{str(optimization_record[1])}',
                 foreground='#FF757F'
             )
             self.label_opt_main.after(
@@ -1991,7 +1995,7 @@ class Splash(Toplevel):
             self,
             text='Используя программу, Вы даёте разрешение на обработку '
                  'ваших персональных данных и \nВы соглашаетесь с условиями '
-            'лицензионного соглашения',
+                 'лицензионного соглашения',
             font=('Times New Roman', 9, 'italic'),
             background='#DF9953',
             foreground='#242424',
