@@ -8,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from hashlib import (blake2b, blake2s, md5, sha1, sha3_384, sha3_512, sha224,
                      sha256, sha384, sha512, shake_128, shake_256)
+import re
 from io import BytesIO
 from subprocess import Popen
 from mimetypes import guess_type
@@ -33,7 +34,10 @@ from requests import get as get_url_response
 import requests.exceptions
 from bs4 import BeautifulSoup
 
-VERSION: str = '1'
+VERSION_NEW: str = '1'
+VERSION_NEW_FUNCTION: str = '0'
+VERSION_PATH: str = '0'
+VERSION: str = f'{VERSION_NEW}.{VERSION_NEW_FUNCTION}.{VERSION_PATH}'
 DATE_FORMAT: str = '%Y-%m-%d %H:%M:%S'
 SAIT: str = 'https://flowhack.github.io/'
 VK: str = 'http://vk.com/id311966436'
@@ -302,7 +306,13 @@ class Chek_value:
             response = get_url_response(SAIT)
             soup = BeautifulSoup(response.text, 'lxml')
             version = soup.find('p', id='version').text.split(': ')[1]
-            if float(version) > float(VERSION):
+            version = version.split('.')
+            version_new = version[0]
+            version_new_function = version[1]
+            version_path = version[2]
+            if (version_new > VERSION_NEW) or \
+                    (version_new_function > VERSION_NEW_FUNCTION) or \
+                    (version_path > VERSION_NEW_FUNCTION):
                 need = askyesno('Update', 'Вышло обновление! Обновить?')
                 if need:
                     if name == 'nt':
